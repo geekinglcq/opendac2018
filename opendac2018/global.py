@@ -27,10 +27,23 @@ from keras.layers import Dense, Input, Lambda
 from keras.optimizers import Adam
 from keras.callbacks import *
 
+os.environ['CUDA_VISIBLE_DEVICES']='0'
+
 assignments_train_path = './data/assignment_train.json'
 pubs_train_path = './data/pubs_train.json'
 pubs_validate_path = './data/pubs_validate.json'
-os.environ['CUDA_VISIBLE_DEVICES']='7'
+
+## 中间输出文件
+material_path = 'material.pkl'              # doc_id  -> [word1, word2, ...], list
+word2vect_model_path = 'word.emb'           # word2vec model.  usage: Word2Vec.load(...)
+idf_path = 'idf.pkl'                        # word    -> idf value, float
+triple_set = 'triple.pkl'                   # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
+global_output_path = 'global_output.pkl'    # doc_id  -> Y_i, np.ndarray
+## 直接调用: weighted_embedding(), 会返回material, word2vect_model, idf, X_i四元组。
+#Y_i的读global_output_path
+
+
+
 EMBEDDING_DIM = 100
 
 
@@ -76,9 +89,9 @@ def ExtractTxt(doc, primary_author):
     return title+coauthors+venue+abstract+keywords
     
 def word_embedding():
-    if os.path.exists('word.emb') and os.path.exists('material.pkl'):
-        model = Word2Vec.load('word.emb')
-        docs = pkl.load(open('material.pkl','rb'))
+    if os.path.exists(word2vect_model_path) and os.path.exists(material_path):
+        model = Word2Vec.load(word2vect_model_path)
+        docs = pkl.load(open(material_path,'rb'))
         return model, docs
     
     material = []
@@ -89,8 +102,8 @@ def word_embedding():
         paper_id.extend( [doc['id'] for doc in v])
     model = Word2Vec(material, size=EMBEDDING_DIM, window=5, min_count=5, workers=20)
     docs = dict(zip(paper_id, material))
-    pkl.dump(docs, open('material.pkl','wb'))
-    model.save('word.emb')
+    pkl.dump(docs, open(material_path,'wb'))
+    model.save(word2vect_model_path)
     pool.close()
     return model, docs 
 
@@ -98,6 +111,8 @@ def word_embedding():
 ## Weighted Embedding
 #todo: 并行
 def calc_idf(material):
+    if os.path.exists(idf_path):
+        return pkl.load(open(idf_path,'rb'))
     cnt = defaultdict(int)
     idf = {}
     for doc in material:
@@ -105,6 +120,7 @@ def calc_idf(material):
             cnt[word]+=1
     for k,v in cnt.items():
         idf[k] = math.log( len(material)/v )
+    pkl.dump(idf, open(idf_path, 'wb'))
     return idf
 
 def project_embedding(docs, wv, idf):
@@ -124,12 +140,12 @@ def project_embedding(docs, wv, idf):
 #得到 X_i, 这部分还算快， 没有写缓存和并行
 #warning: 加权结果可能有点大。
 def weighted_embedding():
-    docs, model = word_embedding()
+    model, docs = word_embedding()
     print('word embedding done!')
     idf = calc_idf(docs.values())
     weighted = project_embedding(docs, model.wv, idf)
     print('weighted embedding done!')
-    return weighted
+    return docs, idf, model, weighted
 
 
 ## Generate Triplet Training Data
@@ -140,8 +156,8 @@ def get_neg_id(all_papers, excludes):
             return all_papers[i]
 
 def gen_triple(weighted, sz = 1000000):
-    if os.path.exists("triple.pkl"):
-        d = pkl.load(open("triple.pkl",'rb'))
+    if os.path.exists(triple_set):
+        d = pkl.load(open(triple_set,'rb'))
         return d['emb'], d['emb_pos'], d['emb_neg']
     
     triples = []
@@ -169,7 +185,7 @@ def gen_triple(weighted, sz = 1000000):
     emb = np.array([ weighted[t[0]] for t in triples ])
     emb_pos = np.array([ weighted[t[1]] for t in triples ])
     emb_neg = np.array([ weighted[t[2]] for t in triples ])
-    pkl.dump({'emb':emb, 'emb_pos':emb_pos, 'emb_neg':emb_neg}, open("triple.pkl",'wb'))
+    pkl.dump({'emb':emb, 'emb_pos':emb_pos, 'emb_neg':emb_neg}, open(triple_set,'wb'))
     return emb, emb_pos, emb_neg
 
 
@@ -191,9 +207,9 @@ def accuracy(_, y_pred):
 class GlobalModel(object):
     def __init__(self):
         self.save_path = 'GlobalModel.h5'
-        emb_anchor = Input(shape=(EMB_DIM, ), name='anchor_input')
-        emb_pos = Input(shape=(EMB_DIM, ), name='pos_input')
-        emb_neg = Input(shape=(EMB_DIM, ), name='neg_input')
+        emb_anchor = Input(shape=(EMBEDDING_DIM, ), name='anchor_input')
+        emb_pos = Input(shape=(EMBEDDING_DIM, ), name='pos_input')
+        emb_neg = Input(shape=(EMBEDDING_DIM, ), name='neg_input')
 
         # shared layers
         layer1 = Dense(128, activation='relu', name='first_emb_layer')
@@ -221,7 +237,7 @@ class GlobalModel(object):
         
         self.model = Model([emb_anchor, emb_pos, emb_neg], stacked_dists, name='triple_siamese')
         self.model.compile(loss=triplet_loss, optimizer=Adam(lr=0.01), metrics=[accuracy])
-        self.infer = Model(inputs=model.get_input_at(0), outputs=model.get_layer('norm_layer').get_output_at(0))
+        self.infer = Model(inputs=self.model.get_input_at(0), outputs=self.model.get_layer('norm_layer').get_output_at(0))
         
         
     def train(self, X):
@@ -238,11 +254,18 @@ class GlobalModel(object):
         self.model.load_weights(self.save_path)
 
 if __name__=="__main__":
+    m = GlobalModel()
     assignments_train, pubs_train, pubs_validate, pubs = read_data()
-    weigthed = weighted_embedding()
+    _, _, _, weighted = weighted_embedding()
     emb, emb_pos, emb_neg = gen_triple(weighted)
     print('gen triple done!')
-    m = GlobalModel()
+    
     m.train([emb, emb_pos, emb_neg])
     m.save()
+
+    all_id = [p['id'] for k, papers in pubs.items() for p in papers]
+    X = np.array( [ weighted[id] for id in all_id ] )
+    Y = m.predict(X)
+    d = dict(zip(X, Y))
+    pkl.dump(d, open(global_output_path,'wb'))
 
