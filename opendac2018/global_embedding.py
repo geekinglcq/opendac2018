@@ -34,13 +34,15 @@ pubs_train_path = './data/pubs_train.json'
 pubs_validate_path = './data/pubs_validate.json'
 
 ## 中间输出文件
-material_path = 'material.pkl'              # doc_id  -> [word1, word2, ...], list
-word2vect_model_path = 'word.emb'           # word2vec model.  usage: Word2Vec.load(...)
-idf_path = 'idf.pkl'                        # word    -> idf value, float
-triple_set = 'triple.pkl'                   # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
-global_output_path = 'global_output.pkl'    # doc_id  -> Y_i, np.ndarray
+material_path = './output/material.pkl'                      # doc_id  -> [word1, word2, ...], list
+word2vect_model_path = './output/word.emb'                   # word2vec model.  usage: Word2Vec.load(...)
+idf_path = './output/idf.pkl'                                # word    -> idf value, float
+weighted_embedding_path = './output/weighted_embedding.pkl'  # doc_id  -> X_i, np.ndarray
+triple_set = './output/triple.pkl'                           # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
+global_embedding_path = './output/global_output.pkl'         # doc_id  -> Y_i, np.ndarray
+
 ## 直接调用: weighted_embedding(), 会返回material, word2vect_model, idf, X_i四元组。
-#Y_i的读global_output_path
+#Y_i的读global_embedding_path
 
 
 
@@ -65,10 +67,13 @@ def clean_name(nm):
 def is_same_name(s1, s2):
     return clean_name(s1)==clean_name(s2)
 
-def clean_sent(s):
+def clean_sent(s, prefix):
+    '''
+    为区别各字段，不同字段前的词加不同的前缀
+    '''
     words = re.sub('[^ \-_a-z]', ' ', s.lower()).split()
     stemer = PorterStemmer()
-    return [stemer.stem(w) for w in words]
+    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words]
     
 def ExtractTxt(doc, primary_author):
     """
@@ -76,16 +81,16 @@ def ExtractTxt(doc, primary_author):
     [题目，合作者(姓名,组织)，期刊，摘要，关键词]
     各种预处理之后的word list
     """
-    title = clean_sent(doc['title']) if doc.get('title',None) else []
-    venue = clean_sent(doc['venue']) if doc.get('venue',None) else []
-    abstract = clean_sent(doc['abstract']) if doc.get('abstract',None) else []
-    keywords = clean_sent(' '.join(doc['keywords'])) if doc.get('keywords',None) else []
+    title = clean_sent(doc['title'], 'T') if doc.get('title',None) else []
+    venue = clean_sent(doc['venue'], 'V') if doc.get('venue',None) else []
+    abstract = clean_sent(doc['abstract'], 'A') if doc.get('abstract',None) else []
+    keywords = clean_sent( ' '.join(doc['keywords']), 'K') if doc.get('keywords',None) else []
     coauthors = []
     if doc.get('authors',None):
         for aut in doc['authors']:
-            if not is_same_name(aut.get('name',''), primary_author):
+            if not is_same_name(  aut.get('name',''), primary_author ):
                 coauthors.append( clean_name(aut.get('name','')) )
-                coauthors.extend( clean_sent(aut.get('org','')) )
+                coauthors.extend( clean_sent(aut.get('org',''), 'O') )
     return title+coauthors+venue+abstract+keywords
     
 def word_embedding():
@@ -124,8 +129,10 @@ def calc_idf(material):
     return idf
 
 def project_embedding(docs, wv, idf):
-    wei_embed = {}
+    if os.path.exists(weighted_embedding_path):
+        return pkl.load(open(weighted_embedding_path, 'rb'))
 
+    wei_embed = {}
     for id, doc in docs.items():
         word_vecs = []
         sum_weight = 0.0
@@ -134,7 +141,7 @@ def project_embedding(docs, wv, idf):
                 word_vecs.append( wv[word] * idf[word] )
                 sum_weight += idf[word]
         wei_embed[id] = np.sum(word_vecs, axis = 0) / sum_weight
-        
+    pkl.dump(wei_embed, open(weighted_embedding_path, 'wb'))
     return wei_embed
 
 #得到 X_i, 这部分还算快， 没有写缓存和并行
@@ -154,6 +161,7 @@ def get_neg_id(all_papers, excludes):
         i = np.random.choice(len(all_papers))
         if all_papers[i] not in excludes:
             return all_papers[i]
+
 
 def gen_triple(weighted, sz = 1000000):
     if os.path.exists(triple_set):
@@ -237,12 +245,16 @@ class GlobalModel(object):
         
         self.model = Model([emb_anchor, emb_pos, emb_neg], stacked_dists, name='triple_siamese')
         self.model.compile(loss=triplet_loss, optimizer=Adam(lr=0.01), metrics=[accuracy])
-        self.infer = Model(inputs=self.model.get_input_at(0), outputs=self.model.get_layer('norm_layer').get_output_at(0))
+        self.infer = Model(inputs=self.model.get_layer('anchor_input').get_input_at(0), 
+                           outputs=self.model.get_layer('norm_layer').get_output_at(0))
         
         
-    def train(self, X):
-        n_triplets = len(X[0])
-        self.model.fit(X, np.ones((n_triplets, 2)), batch_size=64, epochs=5, shuffle=True, validation_split=0.2)
+    def train(self, X, retrain = True):
+        if retrain:
+            n_triplets = len(X[0])
+            self.model.fit(X, np.ones((n_triplets, 2)), batch_size=200, epochs=5, shuffle=True, validation_split=0.2)
+        else:
+            self.load()
         
     def predict(self, X):
         return self.infer.predict(X)
@@ -254,18 +266,19 @@ class GlobalModel(object):
         self.model.load_weights(self.save_path)
 
 if __name__=="__main__":
+    os.makedirs('./output', exist_ok = True)
     m = GlobalModel()
     assignments_train, pubs_train, pubs_validate, pubs = read_data()
     _, _, _, weighted = weighted_embedding()
     emb, emb_pos, emb_neg = gen_triple(weighted)
     print('gen triple done!')
     
-    m.train([emb, emb_pos, emb_neg])
-    m.save()
+    m.train([emb, emb_pos, emb_neg], retrain = False)
+    #m.train([emb, emb_pos, emb_neg], retrain = True); m.save();
 
     all_id = [p['id'] for k, papers in pubs.items() for p in papers]
     X = np.array( [ weighted[id] for id in all_id ] )
     Y = m.predict(X)
-    d = dict(zip(X, Y))
-    pkl.dump(d, open(global_output_path,'wb'))
+    d = dict(zip(all_id, Y))
+    pkl.dump(d, open(global_embedding_path,'wb'))
 

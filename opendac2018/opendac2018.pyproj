@@ -21,10 +21,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="global.py">
+    <Compile Include="global_embedding.py" />
+    <Compile Include="opendac2018.py" />
+    <Compile Include="tools.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="opendac2018.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
