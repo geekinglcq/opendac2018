@@ -187,12 +187,18 @@ def gae_for_na(name):
     return [prec, rec, f1], num_nodes, n_clusters
 
 
-def load_test_names():
-    return json.load(open(join((DATA_DIR, 'test_name_list.json'))))
+def load_names(mode=0):
+    """ mode: 0-train 1-val
+    """
+    if mode:
+        filename = 'val_name_list.json'
+    else:
+        filename = 'train_name_list.json'
+    return json.load(open(join(DATA_DIR, filename)))
 
 
 def main():
-    names = load_test_names()
+    names = load_names()
     wf = codecs.open(
         join(OUTPUT_DIR, 'local_clustering_results.csv'),
         'w',
