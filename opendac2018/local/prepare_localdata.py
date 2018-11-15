@@ -1,27 +1,46 @@
 import os
 import json
 import pickle
-import numpy as np
 from numpy.random import shuffle
 from os.path import join
 
 IDF_THRESHOLD = 32
-DATA_DIR = './data/'
-OUTPUT_DIR = './output/'
+DATA_DIR = '../data/'
+OUTPUT_DIR = '../output/'
 idf_path = 'idf.pkl'  # word    -> idf value, float
 global_output_path = 'global_output.pkl'  # doc_id  -> Y_i, np.ndarray
 material_path = 'material.pkl'  # doc_id  -> [word1, word2, ...], list
+TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
+VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
+VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
 
 
-def gen_local_data(idf_threshold=IDF_THRESHOLD):
+def gen_validation_name_to_pubs():
+    val_data = json.load(open(VAL_PATH))
+    val_name2pub = {}
+    for name, pubs in val_data.items():
+        val_name2pub[name] = []
+        for pub in pubs:
+            val_name2pub[name].append(pub["id"])
+    json.dump(val_name2pub, open(VAL_NAME2PUB, 'w'))
+
+
+# TO_DO: parallel
+def gen_local_data(mode=0, idf_threshold=IDF_THRESHOLD):
     """
     generate local data (including paper features and paper network)
     for each associated name
     :param idf_threshold: threshold for determining whether there exists an edge
     between two papers (for this demo we set 29)
+    :param mode: 0-train 1-test
     """
+    if mode == 0:
+        name_to_pubs_test = json.load(TRAIN_NAME2PUB)
+    else:
+        if not os.path.isfile(VAL_NAME2PUB):
+            gen_validation_name_to_pubs()
+        name_to_pubs_test = json.load(VAL_NAME2PUB)
 
-    name_to_pubs_test = json.load(join(DATA_DIR, 'assignment_train.json'))
     idf = pickle.load(open(join(OUTPUT_DIR, idf_path), 'rb'))
     # INTER_LMDB_NAME = 'author_triplets.emb'
     lc_inter = pickle.load(open(join(OUTPUT_DIR, global_output_path), 'rb'))
