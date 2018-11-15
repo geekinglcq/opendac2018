@@ -4,6 +4,8 @@ from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import AgglomerativeClustering
 
+from settings import assignments_train_path, pubs_validate_path, \
+    local_output_path
 # todo:
 # from RNN_estimate import get_clusters
 # from local import make_input
@@ -84,6 +86,23 @@ def pairwise_precision_recall_f1(preds, truths):
     return precision, recall, f1
 
 
+def gen_upload_file(feature_file=local_output_path):
+    Z = pickle.load(open(local_output_path, 'rb'))
+
+    # Online submit
+    pubs_validate = json.load(open(pubs_validate_path, 'r'))
+    submit = {}
+    for k, v in pubs_validate.items():
+        ids = [p['id'] for p in v]
+
+        X = [Z.get(x) for x in ids]
+
+        model = AgglomerativeClustering(n_clusters=get_clusters(k))
+        model.fit(X)
+        submit[k] = label2assign(ids, model.label_)
+    json.dump(submit, open('file.json', 'w'))
+
+
 # if __name__ == "__main__":
 #     # 线下验证：
 #     assignments_train = json.load(open(assignments_train_path, 'r'))
@@ -100,16 +119,3 @@ def pairwise_precision_recall_f1(preds, truths):
 #         print(f1)
 #         metric.append(f1)
 #     print('offline f1:', np.mean(metric))
-
-#     # 线上提交：
-#     pubs_validate = json.load(open(pubs_validate_path, 'r'))
-#     submit = {}
-#     for k, v in pubs_validate.items():
-#         ids = [p['id'] for p in v]
-
-#         X = make_input(ids)
-
-#         model = AgglomerativeClustering(n_clusters=get_clusters(k))
-#         model.fit(X)
-#         submit[k] = label2assign(ids, model.label_)
-#     json.dump(submit, open('file.json', 'w'))
