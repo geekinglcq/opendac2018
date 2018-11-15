@@ -1,18 +1,24 @@
 import os
+import sys
 import json
 import pickle
 from numpy.random import shuffle
 from os.path import join
 
-IDF_THRESHOLD = 32
-DATA_DIR = '../data/'
-OUTPUT_DIR = '../output/'
-idf_path = 'idf.pkl'  # word    -> idf value, float
-global_output_path = 'global_output.pkl'  # doc_id  -> Y_i, np.ndarray
-material_path = 'material.pkl'  # doc_id  -> [word1, word2, ...], list
-TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
-VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
-VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
+sys.path.append('../')
+from settings import VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
+    IDF_THRESHOLD, global_output_path, material_path, idf_path
+print(VAL_PATH)
+
+# IDF_THRESHOLD = 32
+# DATA_DIR = '../data/'
+# OUTPUT_DIR = '../output/'
+# idf_path = 'idf.pkl'  # word    -> idf value, float
+# global_output_path = 'global_output.pkl'  # doc_id  -> Y_i, np.ndarray
+# material_path = 'material.pkl'  # doc_id  -> [word1, word2, ...], list
+# TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
+# VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
+# VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
 
 
 def gen_validation_name_to_pubs():
@@ -35,19 +41,16 @@ def gen_local_data(mode=0, idf_threshold=IDF_THRESHOLD):
     :param mode: 0-train 1-test
     """
     if mode == 0:
-        name_to_pubs_test = json.load(TRAIN_NAME2PUB)
+        name_to_pubs_test = json.load(open(TRAIN_NAME2PUB))
     else:
         if not os.path.isfile(VAL_NAME2PUB):
             gen_validation_name_to_pubs()
-        name_to_pubs_test = json.load(VAL_NAME2PUB)
+        name_to_pubs_test = json.load(open(VAL_NAME2PUB))
 
     idf = pickle.load(open(join(OUTPUT_DIR, idf_path), 'rb'))
-    # INTER_LMDB_NAME = 'author_triplets.emb'
     lc_inter = pickle.load(open(join(OUTPUT_DIR, global_output_path), 'rb'))
-    # lc_inter = LMDBClient(INTER_LMDB_NAME)
-    # LMDB_AUTHOR_FEATURE = "pub_authors.feature"
     lc_feature = pickle.load(open(join(OUTPUT_DIR, material_path), 'rb'))
-    graph_dir = join(OUTPUT_DIR, 'graph-{}'.format(idf_threshold))
+    graph_dir = join(OUTPUT_DIR, 'graph-{}'.format(IDF_THRESHOLD))
     os.makedirs(graph_dir, exist_ok=True)
     for i, name in enumerate(name_to_pubs_test):
         print(i, name)
@@ -59,10 +62,15 @@ def gen_local_data(mode=0, idf_threshold=IDF_THRESHOLD):
         # generate content
         wf_content = open(
             join(graph_dir, '{}_pubs_content.txt'.format(name)), 'w')
-        for i, cur_person_pids in enumerate(cur_name_pids):
-            for pid in cur_person_pids:
+        if mode:
+            for i, pid in enumerate(cur_name_pids):
                 pids2label[pid] = i
                 pids.append(pid)
+        else:
+            for i, cur_person_pids in enumerate(cur_name_pids):
+                for pid in cur_person_pids:
+                    pids2label[pid] = i
+                    pids.append(pid)
 
         shuffle(pids)
         for pid in pids:

@@ -25,17 +25,20 @@ from local.gae.preprocessing import preprocess_graph, construct_feed_dict, \
 sys.path.append('../')
 from tools import clustering
 from tools import pairwise_precision_recall_f1, cal_f1
+from settings import IDF_THRESHOLD, DATA_DIR, OUTPUT_DIR, idf_path, \
+global_output_path, material_path, local_output_path, TRAIN_NAME2PUB, \
+VAL_NAME2PUB, VAL_PATH
 
-IDF_THRESHOLD = 32
-DATA_DIR = '../../data/'
-OUTPUT_DIR = '../../output/'
-idf_path = 'idf.pkl'  # word    -> idf value, float
-global_output_path = 'global_output.pkl'  # doc_id  -> Y_i, np.ndarray
-material_path = 'material.pkl'  # doc_id  -> [word1, word2, ...], list
-local_output_path = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id -> z_i
-TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
-VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
-VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
+# IDF_THRESHOLD = 32
+# DATA_DIR = '../../data/'
+# OUTPUT_DIR = '../../output/'
+# idf_path = 'idf.pkl'  # word    -> idf value, float
+# global_output_path = 'global_output.pkl'  # doc_id  -> Y_i, np.ndarray
+# material_path = 'material.pkl'  # doc_id  -> [word1, word2, ...], list
+# local_output_path = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id -> z_i
+# TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
+# VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
+# VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
 
 os.environ['CUDA_VISIBLE_DEVICES'] = ""
 # Settings
@@ -60,11 +63,12 @@ name_str = FLAGS.name
 start_time = time.time()
 
 
-def gae_for_na(name):
+def gae_for_na(name, mode=0):
     """
     train and evaluate disambiguation results for a specific name
     :param name:  author name
     :return: evaluation results
+    :mode: 0-train 1-val
     """
     pids, adj, features, labels = load_local_data(name=name)
 
@@ -167,12 +171,16 @@ def gae_for_na(name):
               "{:.5f}".format(time.time() - t))
 
     emb = get_embs()
-    n_clusters = len(set(labels))
-    emb_norm = normalize_vectors(emb)
-    clusters_pred = clustering(emb_norm, num_clusters=n_clusters)
-    prec, rec, f1 = pairwise_precision_recall_f1(clusters_pred, labels)
-    print('pairwise precision', '{:.5f}'.format(prec), 'recall',
-          '{:.5f}'.format(rec), 'f1', '{:.5f}'.format(f1))
+
+    # Train mode calcul F1
+    if not mode:
+        n_clusters = len(set(labels))
+        emb_norm = normalize_vectors(emb)
+        clusters_pred = clustering(emb_norm, num_clusters=n_clusters)
+        prec, rec, f1 = pairwise_precision_recall_f1(clusters_pred, labels)
+        print('pairwise precision', '{:.5f}'.format(prec), 'recall',
+              '{:.5f}'.format(rec), 'f1', '{:.5f}'.format(f1))
+        return [prec, rec, f1], num_nodes, n_clusters
 
     def load_local_output():
         if os.path.isfile(local_output_path):
@@ -184,7 +192,6 @@ def gae_for_na(name):
     for idx, pid in enumerate(pids):
         local_output[pid] = emb[idx]
     pickle.dump(local_output, open(local_output_path, 'wb'))
-    return [prec, rec, f1], num_nodes, n_clusters
 
 
 def load_names(mode=0):
@@ -197,8 +204,8 @@ def load_names(mode=0):
     return json.load(open(join(DATA_DIR, filename)))
 
 
-def main():
-    names = load_names()
+def main(mode=0):
+    names = load_names(mode=mode)
     wf = codecs.open(
         join(OUTPUT_DIR, 'local_clustering_results.csv'),
         'w',
@@ -206,27 +213,32 @@ def main():
     wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
     metrics = np.zeros(3)
     cnt = 0
-    for name in names:
-        cur_metric, num_nodes, n_clusters = gae_for_na(name)
-        wf.write('{0},{1},{2},{3:.5f},{4:.5f},{5:.5f}\n'.format(
-            name, num_nodes, n_clusters, cur_metric[0], cur_metric[1],
-            cur_metric[2]))
-        wf.flush()
-        for i, m in enumerate(cur_metric):
-            metrics[i] += m
-        cnt += 1
+
+    if mode:
+        for name in names:
+            gae_for_na(name, mode=1)
+    else:
+        for name in names:
+            cur_metric, num_nodes, n_clusters = gae_for_na(name, mode=mode)
+            wf.write('{0},{1},{2},{3:.5f},{4:.5f},{5:.5f}\n'.format(
+                name, num_nodes, n_clusters, cur_metric[0], cur_metric[1],
+                cur_metric[2]))
+            wf.flush()
+            for i, m in enumerate(cur_metric):
+                metrics[i] += m
+            cnt += 1
+            macro_prec = metrics[0] / cnt
+            macro_rec = metrics[1] / cnt
+            macro_f1 = cal_f1(macro_prec, macro_rec)
+            print('average until now', [macro_prec, macro_rec, macro_f1])
+            time_acc = time.time() - start_time
+            print(cnt, 'names', time_acc, 'avg time', time_acc / cnt)
         macro_prec = metrics[0] / cnt
         macro_rec = metrics[1] / cnt
         macro_f1 = cal_f1(macro_prec, macro_rec)
-        print('average until now', [macro_prec, macro_rec, macro_f1])
-        time_acc = time.time() - start_time
-        print(cnt, 'names', time_acc, 'avg time', time_acc / cnt)
-    macro_prec = metrics[0] / cnt
-    macro_rec = metrics[1] / cnt
-    macro_f1 = cal_f1(macro_prec, macro_rec)
-    wf.write('average,,,{0:.5f},{1:.5f},{2:.5f}\n'.format(
-        macro_prec, macro_rec, macro_f1))
-    wf.close()
+        wf.write('average,,,{0:.5f},{1:.5f},{2:.5f}\n'.format(
+            macro_prec, macro_rec, macro_f1))
+        wf.close()
 
 
 if __name__ == '__main__':
