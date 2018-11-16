@@ -1,4 +1,5 @@
 import numpy as np
+import pickle as pkl
 import json
 from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
@@ -21,7 +22,7 @@ def label2assign(id, y_pred):
     '''
     d = defaultdict(list)
     for i in range(len(id)):
-        d[y_pred[i]].append(id)
+        d[y_pred[i]].append(id[i])
     return list(d.values())
 
 
@@ -86,8 +87,12 @@ def pairwise_precision_recall_f1(preds, truths):
     return precision, recall, f1
 
 
+def get_clusters(k=10):
+    return 300
+
+
 def gen_upload_file(feature_file=local_output_path):
-    Z = pickle.load(open(local_output_path, 'rb'))
+    Z = pkl.load(open(local_output_path, 'rb'))
 
     # Online submit
     pubs_validate = json.load(open(pubs_validate_path, 'r'))
@@ -97,9 +102,8 @@ def gen_upload_file(feature_file=local_output_path):
 
         X = [Z.get(x) for x in ids]
 
-        model = AgglomerativeClustering(n_clusters=get_clusters(k))
-        model.fit(X)
-        submit[k] = label2assign(ids, model.label_)
+        model = AgglomerativeClustering(n_clusters=get_clusters(k)).fit(X)
+        submit[k] = label2assign(ids, model.labels_)
     json.dump(submit, open('file.json', 'w'))
 
 
