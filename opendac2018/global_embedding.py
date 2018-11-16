@@ -25,13 +25,14 @@ from keras import backend as K
 from keras.models import Model
 from keras.layers import Dense, Input, Lambda
 from keras.optimizers import Adam
-from keras.callbacks import *
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 assignments_train_path = './data/assignment_train.json'
 pubs_train_path = './data/pubs_train.json'
 pubs_validate_path = './data/pubs_validate.json'
+stop_words_path = './data/stop_words.txt'
 
 ## 中间输出文件
 material_path = './output/material.pkl'                      # doc_id  -> [word1, word2, ...], list
@@ -45,8 +46,11 @@ global_embedding_path = './output/global_output.pkl'         # doc_id  -> Y_i, n
 #Y_i的读global_embedding_path
 
 
-
 EMBEDDING_DIM = 100
+with open(stop_words_path,'r') as f:
+    s = set(f.readline().split(','))
+stop_word_list = s.union(stopwords.words('english'))
+    
 
 
 ## Read Data
@@ -73,7 +77,7 @@ def clean_sent(s, prefix):
     '''
     words = re.sub('[^ \-_a-z]', ' ', s.lower()).split()
     stemer = PorterStemmer()
-    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words]
+    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words if w not in stop_word_list]
     
 def ExtractTxt(doc, primary_author):
     """
@@ -182,7 +186,7 @@ def gen_triple(weighted, sz = 1000000):
                 if len(clust)<=1:
                     continue
                 for pid in clust:
-                    sam = np.random.choice(clust,  min(len(clust), 5), replace=False)  #因为平均簇大小是5
+                    sam = np.random.choice(clust,  min(len(clust), 6), replace=False)
                     for pid_pos in sam:
                         triples.append( [pid, pid_pos, get_neg_id(all_papers, clust)] )
                         if len(triples)>=sz:
@@ -214,7 +218,7 @@ def accuracy(_, y_pred):
 
 class GlobalModel(object):
     def __init__(self):
-        self.save_path = 'GlobalModel.h5'
+        self.save_path = './output/GlobalModel.h5'
         emb_anchor = Input(shape=(EMBEDDING_DIM, ), name='anchor_input')
         emb_pos = Input(shape=(EMBEDDING_DIM, ), name='pos_input')
         emb_neg = Input(shape=(EMBEDDING_DIM, ), name='neg_input')
@@ -244,15 +248,17 @@ class GlobalModel(object):
         )([pos_dist, neg_dist])
         
         self.model = Model([emb_anchor, emb_pos, emb_neg], stacked_dists, name='triple_siamese')
-        self.model.compile(loss=triplet_loss, optimizer=Adam(lr=0.01), metrics=[accuracy])
+        self.model.compile(loss=triplet_loss, optimizer='adam', metrics=[accuracy])
         self.infer = Model(inputs=self.model.get_layer('anchor_input').get_input_at(0), 
                            outputs=self.model.get_layer('norm_layer').get_output_at(0))
+        self.early = EarlyStopping('val_loss', patience = 3)
+        self.checkpoint = ModelCheckpoint(self.save_path, 'val_loss', save_best_only=True, save_weights_only = True)
         
         
     def train(self, X, retrain = True):
         if retrain:
             n_triplets = len(X[0])
-            self.model.fit(X, np.ones((n_triplets, 2)), batch_size=200, epochs=5, shuffle=True, validation_split=0.2)
+            self.model.fit(X, np.ones((n_triplets, 2)), batch_size=800, epochs=200, shuffle=True, validation_split=0.2, callbacks = [self.early, self.checkpoint])
         else:
             self.load()
         
@@ -270,11 +276,11 @@ if __name__=="__main__":
     m = GlobalModel()
     assignments_train, pubs_train, pubs_validate, pubs = read_data()
     _, _, _, weighted = weighted_embedding()
-    emb, emb_pos, emb_neg = gen_triple(weighted)
+    emb, emb_pos, emb_neg = gen_triple(weighted, 2000000)
     print('gen triple done!')
     
-    m.train([emb, emb_pos, emb_neg], retrain = False)
-    #m.train([emb, emb_pos, emb_neg], retrain = True); m.save();
+    #m.train([emb, emb_pos, emb_neg], retrain = False)
+    m.train([emb, emb_pos, emb_neg], retrain = True)
 
     all_id = [p['id'] for k, papers in pubs.items() for p in papers]
     X = np.array( [ weighted[id] for id in all_id ] )

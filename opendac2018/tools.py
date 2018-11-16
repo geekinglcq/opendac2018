@@ -31,7 +31,7 @@ def assign2label(lst):
     id2lab = {}
     for c in clusters:
         for id in c:
-            lab[id].append(L)
+            id2lab[id].append(L)
         L+=1
     return list(id2lab.keys()), list(id2lab.values())
 
