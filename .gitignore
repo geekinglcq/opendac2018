@@ -263,3 +263,6 @@ __pycache__/
 *.pkl
 *.emb
 *.npy
+*.pyo
+*.swp
+.ipynb_checkpoints
