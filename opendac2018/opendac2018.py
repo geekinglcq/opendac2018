@@ -1,18 +1,33 @@
-import json
+from XMeans import XMeans
+import multiprocessing as mkl
+from settings import local_output_path
+from tools import label2assign
+from settings import pubs_validate_path
+
+def Cluster4(name):
+    ids = [p['id'] for p in pubs_validate[name]]
+    Z = np.array([local_output[id] for id in ids])
+    m = XMeans()
+    m.fit(Z)
+    return label2assign(ids, m.labels_)
 
 
-assignment_train = './data/assignment_train.json'
-pubs_train = './data/pubs_train.json'
+def label2assign(id, y_pred):
+    '''
+    传入paper id 及预测簇编号
+    返回assignment形式：[[id1, id2, ...], [id1, id2, ...]]
+    '''
+    d = defaultdict(list)
+    for i in range(len(id)):
+        d[y_pred[i]].append(id[i])
+    return list(d.values())
 
-
-##
-# train: 'author_name' -> [ paper1, paper2, ... ]
-# cluster: 'author_name' -> [ [id1, id2,...], [id1, id2,...], ... ]
-# there are 100 authors needed to be disambiguated, ~24W appearing names, 147676 papers
-# each author in training set has 318.22 clusters in average.
 
 if __name__=="__main__":
-    cluster = json.load(open(assigment_train,'r'))
-    train_paper = json.load(open(ppubs_train,'r'))
-
-
+    local_output = pkl.load(open(local_output_path,'rb'))
+    p = mkl.Pool(10)
+    m = XMeans(k_max = 350, max_iter = 1500)
+    res = p.map(Cluster4, pubs_validate.keys())
+    J = dict(zip(pubs_validate.keys(), res))
+    json.dump(J, open('assignment_validate_result.json', 'w'))
+    

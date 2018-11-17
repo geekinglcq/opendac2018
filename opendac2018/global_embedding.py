@@ -26,25 +26,12 @@ from keras.models import Model
 from keras.layers import Dense, Input, Lambda
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping, ModelCheckpoint
+from settings import cuda_visible_devices, assignments_train_path, pubs_train_path, \
+                     pubs_validate_path, stop_words_path, idf_path, global_output_path,\
+                     material_path, weighted_embedding_path,\
+                     word2vect_model_path, triple_set
 
-os.environ['CUDA_VISIBLE_DEVICES']='0'
-
-assignments_train_path = './data/assignment_train.json'
-pubs_train_path = './data/pubs_train.json'
-pubs_validate_path = './data/pubs_validate.json'
-stop_words_path = './data/stop_words.txt'
-
-## 中间输出文件
-material_path = './output/material.pkl'                      # doc_id  -> [word1, word2, ...], list
-word2vect_model_path = './output/word.emb'                   # word2vec model.  usage: Word2Vec.load(...)
-idf_path = './output/idf.pkl'                                # word    -> idf value, float
-weighted_embedding_path = './output/weighted_embedding.pkl'  # doc_id  -> X_i, np.ndarray
-triple_set = './output/triple.pkl'                           # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
-global_embedding_path = './output/global_output.pkl'         # doc_id  -> Y_i, np.ndarray
-
-## 直接调用: weighted_embedding(), 会返回material, word2vect_model, idf, X_i四元组。
-#Y_i的读global_embedding_path
-
+os.environ['CUDA_VISIBLE_DEVICES']=cuda_visible_devices
 
 EMBEDDING_DIM = 100
 with open(stop_words_path,'r') as f:
@@ -286,5 +273,5 @@ if __name__=="__main__":
     X = np.array( [ weighted[id] for id in all_id ] )
     Y = m.predict(X)
     d = dict(zip(all_id, Y))
-    pkl.dump(d, open(global_embedding_path,'wb'))
+    pkl.dump(d, open(glbal_output_path,'wb'))
 

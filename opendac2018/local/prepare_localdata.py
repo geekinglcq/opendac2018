@@ -107,5 +107,6 @@ def gen_local_data(mode=0, idf_threshold=IDF_THRESHOLD):
 
 
 if __name__ == '__main__':
-    gen_local_data(idf_threshold=IDF_THRESHOLD)
+    gen_local_data(idf_threshold=IDF_THRESHOLD, mode = 0)
+    gen_local_data(idf_threshold=IDF_THRESHOLD, mode = 1)
     print('done')

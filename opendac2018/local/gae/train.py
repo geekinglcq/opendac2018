@@ -27,7 +27,7 @@ from tools import clustering
 from tools import pairwise_precision_recall_f1, cal_f1
 from settings import IDF_THRESHOLD, DATA_DIR, OUTPUT_DIR, idf_path, \
 global_output_path, material_path, local_output_path, TRAIN_NAME2PUB, \
-VAL_NAME2PUB, VAL_PATH
+VAL_NAME2PUB, VAL_PATH, cuda_visible_devices
 
 # IDF_THRESHOLD = 32
 # DATA_DIR = '../../data/'
@@ -40,7 +40,7 @@ VAL_NAME2PUB, VAL_PATH
 # VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
 # VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
 
-os.environ['CUDA_VISIBLE_DEVICES'] = ""
+os.environ['CUDA_VISIBLE_DEVICES'] = cuda_visible_devices
 # Settings
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -242,7 +242,4 @@ def main(mode=0):
 
 
 if __name__ == '__main__':
-    # gae_for_na('hongbin_liang')
-    # gae_for_na('j_yu')
-    # gae_for_na('s_yu')
     main()
