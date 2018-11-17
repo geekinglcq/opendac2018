@@ -4,21 +4,20 @@ import keras.backend as K
 import tensorflow as tf
 from keras.models import Sequential
 import json
-#import cPickle
 import pickle
+import os
 from keras.layers import Dense, Dropout, LSTM, Bidirectional
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from settings import cuda_visible_devices, assignments_train_path, pubs_validate_path, weighted_embedding_path
+os.environ['CUDA_VISIBLE_DEVICES'] = cuda_visible_devices
 
-assignment_train_path = "./data/assignment_train.json"
-pubs_validate_path = "./data/pubs_validate_path.json"
-paper_feature_xi_path = "./output/weighted_embedding.pkl"
-count_model_paprameters_path = "./model/count_model_100.h5"
+count_model_parameters_path = "./output/count_model.h5"
 
 paper_feature = {}
-with open(paper_feature_xi_path,'rb') as f:
+with open(weighted_embedding_path,'rb') as f:
     paper_feature = pickle.load(f)
 
 data_cache = {}
-
 
 def root_mean_squared_error(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
@@ -38,7 +37,7 @@ def create_model():
 
     model.compile(loss="msle",
                   optimizer='rmsprop',
-                  metrics=[root_mean_squared_error, "accuracy", "msle", root_mean_log_squared_error])
+                  metrics=[root_mean_squared_error, root_mean_log_squared_error])
 
     return model
 
@@ -72,35 +71,7 @@ def gen_train(clusters, k=300, batch_size=1000, flatten=False):
         yield sampler(clusters, k, batch_size, flatten=flatten)
 
 
-#def gen_test(k=300, flatten=False):
-#    name_to_pubs_test = data_utils.load_json(settings.GLOBAL_DATA_DIR, 'name_to_pubs_test_100.json')
-#    xs, ys = [], []
-#    names = []
-#    for name in name_to_pubs_test:
-#        names.append(name)
-#        num_clusters = len(name_to_pubs_test[name])
-#        x = []
-#        items = []
-#        for c in name_to_pubs_test[name]:  # one person
-#            for item in name_to_pubs_test[name][c]:
-#                items.append(item)
-#        sampled_points = [items[p] for p in np.random.choice(len(items), k, replace=True)]
-#        for p in sampled_points:
-#            if p in data_cache:
-#                x.append(data_cache[p])
-#            else:
-#                x.append(lc.get(p))
-#        if flatten:
-#            xs.append(np.sum(x, axis=0))
-#        else:
-#            xs.append(np.stack(x))
-#        ys.append(num_clusters)
-#    xs = np.stack(xs)
-#    ys = np.stack(ys)
-#    return names, xs, ys
-
 def gen_test(test_names,assignment_train_dict,k=300, flatten=False):
-    #name_to_pubs_test = data_utils.load_json(settings.GLOBAL_DATA_DIR, 'name_to_pubs_test_100.json')
     xs, ys = [], []
     names = []
     for name in test_names:
@@ -109,16 +80,10 @@ def gen_test(test_names,assignment_train_dict,k=300, flatten=False):
         x = []
         items = []
         for c in assignment_train_dict[name]:  # one person
-            #print(c)
-            #for item in c:
             items.extend(c)
-        #print(c)
         sampled_points = [items[p] for p in np.random.choice(len(items), k, replace=True)]
         for p in sampled_points:
-            #if p in data_cache:
             x.append(paper_feature[p])
-            #else:
-            #    x.append(lc.get(p))
         if flatten:
             xs.append(np.sum(x, axis=0))
         else:
@@ -128,38 +93,12 @@ def gen_test(test_names,assignment_train_dict,k=300, flatten=False):
     ys = np.stack(ys)
     return names, xs, ys
 
-#def run_rnn(k=300, seed=1106):
-#    name_to_pubs_train = data_utils.load_json(settings.GLOBAL_DATA_DIR, 'name_to_pubs_train_500.json')
-#    test_names, test_x, test_y = gen_test(k)
-#    np.random.seed(seed)
-#    clusters = []
-#    for domain in name_to_pubs_train.values():
-#        for cluster in domain.values():
-#            clusters.append(cluster)
-#    for i, c in enumerate(clusters):
-#        if i % 100 == 0:
-#            print(i, len(c), len(clusters))
-#        for pid in c:
-#            data_cache[pid] = lc.get(pid)
-#    model = create_model()
-#    # print(model.summary())
-#    model.fit_generator(gen_train(clusters, k=300, batch_size=1000), steps_per_epoch=100, epochs=1000,
-#                        validation_data=(test_x, test_y))
-#    kk = model.predict(test_x)
-#    wf = open(join(settings.OUT_DIR, 'n_clusters_rnn.txt'), 'w')
-#    for i, name in enumerate(test_names):
-#        wf.write('{}\t{}\t{}\n'.format(name, test_y[i], kk[i][0]))
-#    wf.close()
-
 def run_rnn(k=300, seed=1106):
-    #name_to_pubs_train = data_utils.load_json(settings.GLOBAL_DATA_DIR, 'name_to_pubs_train_500.json')
     train_names, test_names, assignment_train_dict = read_data()
     test_names, test_x, test_y = gen_test(test_names,assignment_train_dict)
     np.random.seed(seed)
     clusters = []
     for name in train_names:
-        #for cluster in domain.values():
-        #    clusters.append(cluster)
         clusters.extend(assignment_train_dict[name])
     for i, c in enumerate(clusters):
         if i % 100 == 0:
@@ -167,47 +106,22 @@ def run_rnn(k=300, seed=1106):
         for pid in c:
             data_cache[pid] = paper_feature[pid]
     model = create_model()
+    early = EarlyStopping('val_loss', patience=5)
+    checkpoint = ModelCheckpoint(count_model_parameters_path, 'val_loss', save_best_only=True, save_weights_only=True)
     # print(model.summary())
     model.fit_generator(gen_train(clusters, k=300, batch_size=1000), steps_per_epoch=100, epochs=100,
-                        validation_data=(test_x, test_y))
-    model.save_weights(count_model_paprameters_path)
-    kk = model.predict(test_x)
-    #wf = open(join(settings.OUT_DIR, 'n_clusters_rnn.txt'), 'w')
-    #for i, name in enumerate(test_names):
-    #    wf.write('{}\t{}\t{}\n'.format(name, test_y[i], kk[i][0]))
-    #wf.close()
+                        validation_data=(test_x, test_y), callbacks = [early, checkpoint])
 
 
 
 def read_data():
 
-    with open(assignment_train_path,'r') as f:
+    with open(assignments_train_path,'r') as f:
         assignment_train_dict = json.load(f)
     total_names = list(assignment_train_dict.keys())
     train_names = total_names[:80]
     test_names = total_names[80:]
     return train_names,test_names,assignment_train_dict
-
-#def test_validate(model,k=300):
-#    with open(pubs_validate_path,'r') as f:
-#        pubs_validate_dict = json.load(f)
-#
-#    xs = []
-#    names = []
-#    for name in pubs_validate_dict.keys():
-#        names.append(name)
-#        x = []
-#        items = pubs_validate_dict[name]
-#        sampled_points = [items[p] for p in np.random.choice(len(items), k, replace=True)]
-#        for p in sampled_points:
-#            x.append(paper_feature[p])
-#        if flatten:
-#            xs.append(np.sum(x, axis=0))
-#        else:
-#            xs.append(np.stack(x))
-#    xs = np.stack(xs)
-#    kk = model.predict(xs)
-#    return names, kk
 
 if __name__ == '__main__':
     run_rnn()

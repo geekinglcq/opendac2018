@@ -26,8 +26,8 @@ sys.path.append('../')
 from tools import clustering
 from tools import pairwise_precision_recall_f1, cal_f1
 from settings import IDF_THRESHOLD, DATA_DIR, OUTPUT_DIR, idf_path, \
-global_output_path, material_path, local_output_path, TRAIN_NAME2PUB, \
-VAL_NAME2PUB, VAL_PATH, cuda_visible_devices
+                     global_output_path, material_path, local_output_path, TRAIN_NAME2PUB, \
+                     VAL_NAME2PUB, VAL_PATH, cuda_visible_devices
 
 # IDF_THRESHOLD = 32
 # DATA_DIR = '../../data/'

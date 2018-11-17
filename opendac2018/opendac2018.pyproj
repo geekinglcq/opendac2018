@@ -21,6 +21,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="count_test.py" />
+    <Compile Include="count_train.py" />
     <Compile Include="global_embedding.py" />
     <Compile Include="local\gae\initializations.py" />
     <Compile Include="local\gae\input_data.py" />
