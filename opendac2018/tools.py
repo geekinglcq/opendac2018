@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import AgglomerativeClustering
 
 from settings import assignments_train_path, pubs_validate_path, \
-    local_output_path
+    local_output_path, global_output_path
 # todo:
 # from RNN_estimate import get_clusters
 # from local import make_input
@@ -34,8 +34,9 @@ def assign2label(lst):
     返回两个list: [id1, id2, id3, ...]; [lab1, lab2, lab3, ...]. 相同簇的paper id具有相同的编号
     '''
     L = 0
+    clusters = [c for c in lst]
     id2lab = defaultdict(list)
-    for c in lst:
+    for c in clusters:
         for id in c:
             id2lab[id].append(L)
         L += 1
@@ -112,6 +113,23 @@ def gen_upload_file(feature_file=local_output_path, cluster_method='XMeans'):
         labels = clustering(X, method=cluster_method)
         submit[k] = label2assign(ids, labels)
     json.dump(submit, open('file.json', 'w'))
+
+
+def offline_score(cluster_method='XMeans'):
+    assignments_train = json.load(open(assignments_train_path, 'r'))
+
+    Z = pkl.load(open(global_output_path, 'rb'))
+    metric = []
+    for k, v in assignments_train.items():
+        ids, labs = assign2label(v)
+
+        X = [Z.get(x) for x in ids]
+
+        pre_labs = clustering(X, method=cluster_method)
+        f1 = pairwise_precision_recall_f1(pre_labs, labs)
+        print(f1)
+        metric.append(f1)
+    print('offline f1:', np.mean(metric))
 
 
 # if __name__ == "__main__":
