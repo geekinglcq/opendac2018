@@ -206,11 +206,12 @@ def load_names(mode=0):
 
 def main(mode=0):
     names = load_names(mode=mode)
-    wf = codecs.open(
-        join(OUTPUT_DIR, 'local_clustering_results.csv'),
-        'w',
-        encoding='utf-8')
-    wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
+    if mode == 0:
+        wf = codecs.open(
+            join(OUTPUT_DIR, 'local_clustering_results.csv'),
+            'w',
+            encoding='utf-8')
+        wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
     metrics = np.zeros(3)
     cnt = 0
 
