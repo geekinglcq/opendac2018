@@ -24,3 +24,4 @@ weighted_embedding_path = './output/weighted_embedding.pkl'  # doc_id  -> X_i, n
 word2vect_model_path    = './output/word.emb'                   # word2vec model.  usage: Word2Vec.load(...)
 triple_set              = './output/triple.pkl'                           # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
 
+CPU_COUNT = 20

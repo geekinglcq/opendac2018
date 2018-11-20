@@ -33,9 +33,8 @@ def assign2label(lst):
     返回两个list: [id1, id2, id3, ...]; [lab1, lab2, lab3, ...]. 相同簇的paper id具有相同的编号
     '''
     L = 0
-    clusters = [c for c in lst]
-    id2lab = {}
-    for c in clusters:
+    id2lab = defaultdict(list)
+    for c in lst:
         for id in c:
             id2lab[id].append(L)
         L += 1

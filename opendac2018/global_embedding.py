@@ -29,7 +29,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from settings import cuda_visible_devices, assignments_train_path, pubs_train_path, \
                      pubs_validate_path, stop_words_path, idf_path, global_output_path,\
                      material_path, weighted_embedding_path,\
-                     word2vect_model_path, triple_set
+                     word2vect_model_path, triple_set, CPU_COUNT
 
 os.environ['CUDA_VISIBLE_DEVICES']=cuda_visible_devices
 
@@ -62,9 +62,9 @@ def clean_sent(s, prefix):
     '''
     为区别各字段，不同字段前的词加不同的前缀
     '''
-    words = re.sub('[^ \-_a-z]', ' ', s.lower()).split()
+    words = re.sub('[^ \-_a-z0-9]', ' ', s.lower()).split()
     stemer = PorterStemmer()
-    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words if w not in stop_word_list]
+    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words if len(w)>0 and w not in stop_word_list]
     
 def ExtractTxt(doc, primary_author):
     """
@@ -92,11 +92,11 @@ def word_embedding():
     
     material = []
     paper_id = []
-    pool = mlp.Pool(20)
+    pool = mlp.Pool(CPU_COUNT)
     for k,v in pubs.items():
         material.extend(pool.starmap( ExtractTxt, zip( v, [k]*len(v) ) ))
         paper_id.extend( [doc['id'] for doc in v])
-    model = Word2Vec(material, size=EMBEDDING_DIM, window=5, min_count=5, workers=20)
+    model = Word2Vec(material, size=EMBEDDING_DIM, window=5, min_count=5, workers=CPU_COUNT)
     docs = dict(zip(paper_id, material))
     pkl.dump(docs, open(material_path,'wb'))
     model.save(word2vect_model_path)
@@ -155,9 +155,9 @@ def get_neg_id(all_papers, excludes):
 
 
 def gen_triple(weighted, sz = 1000000):
-    if os.path.exists(triple_set):
-        d = pkl.load(open(triple_set,'rb'))
-        return d['emb'], d['emb_pos'], d['emb_neg']
+    #if os.path.exists(triple_set):
+    #    d = pkl.load(open(triple_set,'rb'))
+    #    return d['emb'], d['emb_pos'], d['emb_neg']
     
     triples = []
     authors = list(assignments_train.keys())
@@ -184,7 +184,7 @@ def gen_triple(weighted, sz = 1000000):
     emb = np.array([ weighted[t[0]] for t in triples ])
     emb_pos = np.array([ weighted[t[1]] for t in triples ])
     emb_neg = np.array([ weighted[t[2]] for t in triples ])
-    pkl.dump({'emb':emb, 'emb_pos':emb_pos, 'emb_neg':emb_neg}, open(triple_set,'wb'))
+    #pkl.dump({'emb':emb, 'emb_pos':emb_pos, 'emb_neg':emb_neg}, open(triple_set,'wb'))
     return emb, emb_pos, emb_neg
 
 
