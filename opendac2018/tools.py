@@ -1,6 +1,7 @@
 import numpy as np
 import pickle as pkl
 import json
+from XMeans import XMeans
 from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import AgglomerativeClustering
@@ -42,10 +43,17 @@ def assign2label(lst):
     return list(id2lab.keys()), list(id2lab.values())
 
 
-def clustering(embeddings, num_clusters):
+def clustering(embeddings, method='XMeans', num_clusters=None):
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(embeddings)
-    model = AgglomerativeClustering(n_clusters=num_clusters).fit(emb_norm)
+    if method == 'XMeans':
+        model = XMeans(300)
+        model.fit(emb_norm)
+
+    elif method == 'HAC':
+        assert num_clusters is not None
+        model = AgglomerativeClustering(n_clusters=num_clusters).fit(emb_norm)
+
     return model.labels_
 
 
@@ -91,7 +99,7 @@ def get_clusters(k=10):
     return 300
 
 
-def gen_upload_file(feature_file=local_output_path):
+def gen_upload_file(feature_file=local_output_path, cluster_method='XMeans'):
     Z = pkl.load(open(local_output_path, 'rb'))
 
     # Online submit
@@ -102,8 +110,8 @@ def gen_upload_file(feature_file=local_output_path):
 
         X = [Z.get(x) for x in ids]
 
-        model = AgglomerativeClustering(n_clusters=get_clusters(k)).fit(X)
-        submit[k] = label2assign(ids, model.labels_)
+        labels = clustering(X, method=cluster_method)
+        submit[k] = label2assign(ids, labels)
     json.dump(submit, open('file.json', 'w'))
 
 
