@@ -15,7 +15,6 @@ from settings import assignments_train_path, pubs_validate_path, \
 assignments_train_path = './data/assignment_train.json'
 pubs_validate_path = './data/pubs_validate.json'
 
-
 def label2assign(id, y_pred):
     '''
     传入paper id 及预测簇编号
@@ -25,7 +24,6 @@ def label2assign(id, y_pred):
     for i in range(len(id)):
         d[y_pred[i]].append(id[i])
     return list(d.values())
-
 
 def assign2label(lst):
     '''
@@ -40,21 +38,6 @@ def assign2label(lst):
             id2lab[id].append(L)
         L += 1
     return list(id2lab.keys()), list(id2lab.values())
-
-
-def clustering(embeddings, method='XMeans', num_clusters=None):
-    scalar = StandardScaler()
-    emb_norm = scalar.fit_transform(embeddings)
-    if method == 'XMeans':
-        model = XMeans(300)
-        model.fit(emb_norm)
-
-    elif method == 'HAC':
-        assert num_clusters is not None
-        model = AgglomerativeClustering(n_clusters=num_clusters).fit(emb_norm)
-
-    return model.labels_
-
 
 def cal_f1(prec, rec):
     return 2 * prec * rec / (prec + rec)
@@ -92,26 +75,6 @@ def pairwise_precision_recall_f1(preds, truths):
     else:
         f1 = (2 * precision * recall) / (precision + recall)
     return precision, recall, f1
-
-
-def get_clusters(k=10):
-    return 300
-
-
-def gen_upload_file(feature_file=local_output_path, cluster_method='XMeans'):
-    Z = pkl.load(open(local_output_path, 'rb'))
-
-    # Online submit
-    pubs_validate = json.load(open(pubs_validate_path, 'r'))
-    submit = {}
-    for k, v in pubs_validate.items():
-        ids = [p['id'] for p in v]
-
-        X = [Z.get(x) for x in ids]
-
-        labels = clustering(X, method=cluster_method)
-        submit[k] = label2assign(ids, labels)
-    json.dump(submit, open('file.json', 'w'))
 
 
 # if __name__ == "__main__":

@@ -14,6 +14,7 @@ import codecs
 import tensorflow as tf
 import numpy as np
 import scipy.sparse as sp
+from sklearn.cluster import AgglomerativeClustering
 
 sys.path.append('../..')
 from local.gae.optimizer import OptimizerAE, OptimizerVAE
@@ -23,7 +24,6 @@ from local.gae.preprocessing import preprocess_graph, construct_feed_dict, \
     sparse_to_tuple, normalize_vectors, gen_train_edges, cal_pos_weight
 
 sys.path.append('../')
-from tools import clustering
 from tools import pairwise_precision_recall_f1, cal_f1
 from settings import IDF_THRESHOLD, DATA_DIR, OUTPUT_DIR, idf_path, \
                      global_output_path, material_path, local_output_path, TRAIN_NAME2PUB, \
@@ -176,8 +176,9 @@ def gae_for_na(name, mode=0):
     if not mode:
         n_clusters = len(set(labels))
         emb_norm = normalize_vectors(emb)
-        clusters_pred = clustering(emb_norm, num_clusters=n_clusters)
-        prec, rec, f1 = pairwise_precision_recall_f1(clusters_pred, labels)
+        model = AgglomerativeClustering(n_clusters=num_clusters)
+        model.fit(emb_norm)
+        prec, rec, f1 = pairwise_precision_recall_f1(model.labels_, labels)
         print('pairwise precision', '{:.5f}'.format(prec), 'recall',
               '{:.5f}'.format(rec), 'f1', '{:.5f}'.format(f1))
         return [prec, rec, f1], num_nodes, n_clusters
@@ -243,4 +244,9 @@ def main(mode=0):
 
 
 if __name__ == '__main__':
-    main()
+    #for train
+    #main(0)
+
+    #for val
+    main(1)
+
