@@ -6,8 +6,7 @@ import numpy as np
 from itertools import combinations
 from collections import defaultdict
 sys.path.append('../')
-from settings import pubs_train_path, pubs_validate_path, pos_pair_train_path, \
-    pos_pair_val_path
+from settings import pubs_train_path, pubs_validate_path, pos_pair_path
 
 # VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
 #    IDF_THRESHOLD, global_output_path, material_path, idf_path,
@@ -50,12 +49,10 @@ def generate_positive_pair(mode=0):
     Return: dict: key-name, values-list of pos_pair tuple
     {'name': [(pid,pid), ... , [pid, pid]]}
     """
-    if mode:
+    if not mode:
         data_path = pubs_train_path
-        pos_pair_path = pos_pair_train_path
     else:
         data_path = pubs_validate_path
-        pos_pair_path = pos_pair_val_path
 
     rules = [exactly_same_co_author]
     pos_pair = defaultdict(list)
@@ -70,5 +67,9 @@ def generate_positive_pair(mode=0):
                     pairs.add((paper_a['id'], paper_b['id']))
         pos_pair[name] = list(pairs)
 
+    if os.path.isfile(pos_pair_path):
+        existed_pair = json.load(open(pos_pair_path))
+
+    pos_pair.update(existed_pair)
     json.dump(pos_pair, open(pos_pair_path, 'w'))
     return pos_pair

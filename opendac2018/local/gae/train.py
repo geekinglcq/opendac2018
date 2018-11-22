@@ -213,6 +213,7 @@ def main(mode=0):
             encoding='utf-8')
         wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
     metrics = np.zeros(3)
+
     cnt = 0
 
     if mode:
