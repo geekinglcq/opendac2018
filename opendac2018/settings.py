@@ -14,7 +14,7 @@ local_output_path       = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id  -> Z_i
 
 # Global settings
 assignments_train_path  = join(DATA_DIR, 'assignment_train.json')
-pubs_train_path         = './data/pubs_train.json'
+pubs_train_path         = join(DATA_DIR, 'pubs_train.json')
 pubs_validate_path      = join(DATA_DIR, 'pubs_validate.json')
 stop_words_path         = './data/stop_words.txt'
 idf_path                = join(OUTPUT_DIR, 'idf.pkl')  # word    -> idf value, float
