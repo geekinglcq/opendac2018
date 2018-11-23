@@ -21,9 +21,9 @@ idf_path                = join(OUTPUT_DIR, 'idf.pkl')  # word    -> idf value, f
 global_output_path      = join(OUTPUT_DIR, 'global_output.pkl')  # doc_id  -> Y_i, np.ndarray
 material_path           = join(OUTPUT_DIR, 'material.pkl')  # doc_id  -> [word1, word2, ...], list
 weighted_embedding_path = './output/weighted_embedding.pkl'  # doc_id  -> X_i, np.ndarray
-word2vect_model_path    = join(DATA_DIR, 'GoogleNews-vectors-negative300.bin.gz')  # word2vec model.  usage: KeyedVectors.load_word2vec_format(...)
-#word2vect_model_path    = './output/word.emb'                   # word2vec model.  usage: Word2Vec.load(...)
+#word2vect_model_path    = join(DATA_DIR, 'GoogleNews-vectors-negative300.bin.gz')  # word2vec model.  usage: KeyedVectors.load_word2vec_format(...)
+word2vect_model_path    = './output/word.emb'                   # word2vec model.  usage: Word2Vec.load(...)
 triple_set              = './output/triple.pkl'                           # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
-EMBEDDING_DIM = 300
+EMBEDDING_DIM = 100
 
 CPU_COUNT = 20

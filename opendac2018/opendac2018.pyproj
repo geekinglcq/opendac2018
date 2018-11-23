@@ -35,6 +35,8 @@
     <Compile Include="local\prepare_localdata.py" />
     <Compile Include="local\__init__.py" />
     <Compile Include="opendac2018.py" />
+    <Compile Include="rules\pos.py" />
+    <Compile Include="rules\__init__.py" />
     <Compile Include="settings.py" />
     <Compile Include="tools.py">
       <SubType>Code</SubType>
@@ -44,6 +46,7 @@
   <ItemGroup>
     <Folder Include="local\" />
     <Folder Include="local\gae\" />
+    <Folder Include="rules\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
