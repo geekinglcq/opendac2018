@@ -15,6 +15,10 @@ import numpy as np
 
 pubs_validate = json.load(open(pubs_validate_path,'r'))
 pubs_train = json.load(open(pubs_train_path, 'r'))
+local_output = pkl.load(open(local_output_path, 'rb'))
+if not os.path.isfile(pos_pair_path):
+    generate_positive_pair()
+pos_pair = json.load(open(pos_pair_path))[name]
 
 
 def clustering_with_const(name, method='PCKMeans', ml=[], cl=[], num_clusters=None):
@@ -25,12 +29,6 @@ def clustering_with_const(name, method='PCKMeans', ml=[], cl=[], num_clusters=No
       list ml: must-link constraints
       list cl: cannot-link constraints
     """
-
-    pubs_validate = json.load(open(pubs_validate_path,'r'))
-    local_output = pkl.load(open(local_output_path, 'rb'))
-    if not os.path.isfile(pos_pair_path):
-        generate_positive_pair()
-    pos_pair = json.load(open(pos_pair_path))[name]
 
     ids = [p['id'] for p in pubs_validate[name]]
     id2ind = {k : v for v, k in enumerate(ids)}
@@ -48,7 +46,7 @@ def clustering_with_const(name, method='PCKMeans', ml=[], cl=[], num_clusters=No
 
 
 def clustering(name, method='XMeans', num_clusters=None):
-    ids = [p['id'] for p in pubs_train[name]]
+    ids = [p['id'] for p in pubs_validate[name]]       #todo: 视情况修改
     Z = np.array([local_output[id] for id in ids])
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(Z)
@@ -64,14 +62,14 @@ def clustering(name, method='XMeans', num_clusters=None):
 
 
 if __name__=="__main__":
-    local_output = pkl.load(open(local_output_path,'rb'))
     p = mkl.Pool(CPU_COUNT)
 
+    #for train:
     res = p.starmap(clustering,  zip( pubs_train.keys(), ['XMeans']*len(pubs_train.keys()) ) )
     J = dict(zip(pubs_train.keys(), res))
     json.dump(J, open('assignment_train_result.json', 'w'))
 
-    #
+    #for val:
     #res = p.starmap(clustering,  zip( pubs_validate.keys(), ['XMeans']*len(pubs_validate.keys()) ) )
     #J = dict(zip(pubs_validate.keys(), res))
     #json.dump(J, open('assignment_validate_result.json', 'w'))
