@@ -61,9 +61,9 @@ def clean_sent(s, prefix = None):
     '''
     为区别各字段，不同字段前的词加不同的前缀
     '''
-    words = re.sub('[^ \-_a-z0-9]', ' ', s.lower()).split()
+    words = re.sub('[^ \-_a-z]', ' ', s.lower()).split()
     stemer = PorterStemmer()
-    return [ ('__%s__%s'%(prefix, stemer.stem(w)) if prefix is not None else stemer.stem(w)) for w in words if len(w)>0 and w not in stop_word_list]
+    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words]
 
     
 def ExtractTxt(doc, primary_author):
@@ -81,7 +81,7 @@ def ExtractTxt(doc, primary_author):
         for aut in doc['authors']:
             if not is_same_name(  aut.get('name',''), primary_author ):
                 coauthors.append( clean_name(aut.get('name','')) )
-                coauthors.extend( clean_sent(aut.get('org','O'), None) )
+                coauthors.extend( clean_sent(aut.get('org',''), 'O') )
     return title+coauthors+venue+abstract+keywords
     
 def word_embedding():
@@ -132,9 +132,6 @@ def project_embedding(docs, wv, idf):
             if word in wv and word in idf:
                 word_vecs.append( wv[word] * idf[word] )
                 sum_weight += idf[word]
-            else:
-                sum_weight += 1
-                word_vecs.append([0]*EMBEDDING_DIM)
         wei_embed[id] = np.sum(word_vecs, axis = 0) / sum_weight
     pkl.dump(wei_embed, open(weighted_embedding_path, 'wb'))
     return wei_embed
