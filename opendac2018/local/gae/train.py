@@ -62,6 +62,7 @@ model_str = FLAGS.model
 name_str = FLAGS.name
 start_time = time.time()
 
+local_output = {}
 
 def gae_for_na(name, mode=0):
     """
@@ -183,16 +184,9 @@ def gae_for_na(name, mode=0):
               '{:.5f}'.format(rec), 'f1', '{:.5f}'.format(f1))
         return [prec, rec, f1], num_nodes, n_clusters
 
-    def load_local_output():
-        if os.path.isfile(local_output_path):
-            return pickle.load(open(local_output_path, 'rb'))
-        else:
-            return {}
 
-    local_output = load_local_output()
     for idx, pid in enumerate(pids):
         local_output[pid] = emb[idx]
-    pickle.dump(local_output, open(local_output_path, 'wb'))
 
 
 def load_names(mode=0):
@@ -250,4 +244,5 @@ if __name__ == '__main__':
 
     #for val
     main(1)
+    pickle.dump(local_output, open(local_output_path, 'wb'))
 

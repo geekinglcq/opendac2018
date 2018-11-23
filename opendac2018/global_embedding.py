@@ -61,9 +61,9 @@ def clean_sent(s, prefix = None):
     '''
     为区别各字段，不同字段前的词加不同的前缀
     '''
-    words = re.sub('[^ \-_a-z0-9]', ' ', s.lower()).split()
+    words = re.sub('[^ \-_a-z]', ' ', s.lower()).split()
     stemer = PorterStemmer()
-    return [ ('__%s__%s'%(prefix, stemer.stem(w)) if prefix is not None else stemer.stem(w)) for w in words if len(w)>0 and w not in stop_word_list]
+    return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words]
 
     
 def ExtractTxt(doc, primary_author):
@@ -72,22 +72,23 @@ def ExtractTxt(doc, primary_author):
     [题目，合作者(姓名,组织)，期刊，摘要，关键词]
     各种预处理之后的word list
     """
-    title = clean_sent(doc['title'], None) if doc.get('title',None) else []
-    venue = clean_sent(doc['venue'], None) if doc.get('venue',None) else []
-    abstract = clean_sent(doc['abstract'], None) if doc.get('abstract',None) else []
-    keywords = clean_sent( ' '.join(doc['keywords']), None) if doc.get('keywords',None) else []
+    title = clean_sent(doc['title'], 'T') if doc.get('title',None) else []
+    venue = clean_sent(doc['venue'], 'V') if doc.get('venue',None) else []
+    abstract = clean_sent(doc['abstract'], 'A') if doc.get('abstract',None) else []
+    keywords = clean_sent( ' '.join(doc['keywords']), 'K') if doc.get('keywords',None) else []
     coauthors = []
     if doc.get('authors',None):
         for aut in doc['authors']:
             if not is_same_name(  aut.get('name',''), primary_author ):
                 coauthors.append( clean_name(aut.get('name','')) )
-                coauthors.extend( clean_sent(aut.get('org',''), None) )
+                coauthors.extend( clean_sent(aut.get('org',''), 'O') )
     return title+coauthors+venue+abstract+keywords
     
 def word_embedding():
-    model = KeyedVectors.load_word2vec_format(word2vect_model_path, binary=True)
+    #model = KeyedVectors.load_word2vec_format(word2vect_model_path, binary=True)
     if os.path.exists(word2vect_model_path) and os.path.exists(material_path):
         docs = pkl.load(open(material_path,'rb'))
+        Word2Vec.load(word2vect_model_path)
         return model, docs
     
     material = []
@@ -97,6 +98,8 @@ def word_embedding():
         material.extend(pool.starmap( ExtractTxt, zip( v, [k]*len(v) ) ))
         paper_id.extend( [doc['id'] for doc in v])
     docs = dict(zip(paper_id, material))
+    model = Word2Vec(material, size=EMBEDDING_DIM, window=5, min_count=5, workers=CPU_COUNT)
+    model.save(word2vect_model_path)
     pkl.dump(docs, open(material_path,'wb'))
     pool.close()
     return model, docs 
@@ -129,9 +132,6 @@ def project_embedding(docs, wv, idf):
             if word in wv and word in idf:
                 word_vecs.append( wv[word] * idf[word] )
                 sum_weight += idf[word]
-            else:
-                sum_weight += 1
-                word_vecs.append([0]*EMBEDDING_DIM)
         wei_embed[id] = np.sum(word_vecs, axis = 0) / sum_weight
     pkl.dump(wei_embed, open(weighted_embedding_path, 'wb'))
     return wei_embed

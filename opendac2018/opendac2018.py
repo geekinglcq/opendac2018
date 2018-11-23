@@ -18,7 +18,7 @@ def clustering(name, method='XMeans', num_clusters=None):
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(Z)
     if method == 'XMeans':
-        model = XMeans(300)
+        model = XMeans()
         model.fit(emb_norm)
 
     elif method == 'HAC':
