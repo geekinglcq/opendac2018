@@ -18,7 +18,7 @@ pubs_train = json.load(open(pubs_train_path, 'r'))
 local_output = pkl.load(open(local_output_path, 'rb'))
 if not os.path.isfile(pos_pair_path):
     generate_positive_pair()
-pos_pair = json.load(open(pos_pair_path))[name]
+all_pos_pair = json.load(open(pos_pair_path))
 
 
 def clustering_with_const(name, method='PCKMeans', ml=[], cl=[], num_clusters=None):
@@ -32,6 +32,7 @@ def clustering_with_const(name, method='PCKMeans', ml=[], cl=[], num_clusters=No
 
     ids = [p['id'] for p in pubs_validate[name]]
     id2ind = {k : v for v, k in enumerate(ids)}
+    pos_pair = all_pos_pair[name]
     must_link = [(id2ind[a], id2ind[b]) for a, b in pos_pair]
     Z = np.array([local_output[id] for id in ids])
     scalar = StandardScaler()
