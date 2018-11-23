@@ -129,15 +129,13 @@ def generate_positive_pair(mode=0):
     Return: dict: key-name, values-list of pos_pair tuple
     {'name': [(pid,pid), ... , [pid, pid]]}
     """
-    if not mode:
-        data_path = pubs_train_path
-    else:
-        data_path = pubs_validate_path
 
     rules = [exactly_same_co_author]
     pos_pair = defaultdict(list)
 
-    data = json.load(open(data_path))
+    data = json.load(open(pubs_train_path))
+    val_data = json.load(open(pubs_validate_path))
+    data.update(val_data)
     for idx, (name, papers) in enumerate(data.items()):
         print(name, "%d/%d" % (idx + 1, len(data)))
         pairs = set()
