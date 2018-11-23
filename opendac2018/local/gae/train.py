@@ -173,20 +173,20 @@ def gae_for_na(name, mode=0):
 
     emb = get_embs()
 
+    for idx, pid in enumerate(pids):
+        local_output[pid] = emb[idx]
+
     # Train mode calcul F1
     if not mode:
         n_clusters = len(set(labels))
         emb_norm = normalize_vectors(emb)
-        model = AgglomerativeClustering(n_clusters=num_clusters)
+        model = AgglomerativeClustering(n_clusters=n_clusters)
         model.fit(emb_norm)
         prec, rec, f1 = pairwise_precision_recall_f1(model.labels_, labels)
         print('pairwise precision', '{:.5f}'.format(prec), 'recall',
               '{:.5f}'.format(rec), 'f1', '{:.5f}'.format(f1))
         return [prec, rec, f1], num_nodes, n_clusters
 
-
-    for idx, pid in enumerate(pids):
-        local_output[pid] = emb[idx]
 
 
 def load_names(mode=0):
@@ -240,7 +240,7 @@ def main(mode=0):
 
 if __name__ == '__main__':
     #for train
-    #main(0)
+    main(0)
 
     #for val
     main(1)
