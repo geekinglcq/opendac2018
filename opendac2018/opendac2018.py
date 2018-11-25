@@ -38,12 +38,8 @@ def clustering_with_const(name, method='PCKMeans', num_clusters=None):
 
     assert method in set(['COPKMeans', 'PCKMeans', 'MPCKMeans', 'MPCKMeansMF'
                           'MKMeans', 'RCAKMeans'])
-    model = eval(method)(n_clusters=len(j68[name]))
-    try:
-        model.fit(emb_norm, ml=must_link)
-    except:
-        print("too many cluster: ", name)
-        return j68[name]
+    model = eval(method)(n_clusters=50)
+    model.fit(emb_norm, ml=must_link)
 
     return label2assign(ids, model.labels_)
 
