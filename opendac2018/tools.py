@@ -6,8 +6,9 @@ from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import AgglomerativeClustering
 
+# from opendac2018 import clustering
 from settings import assignments_train_path, pubs_validate_path, \
-    local_output_path, global_output_path
+    local_output_path, global_output_path, pos_pair_path
 # todo:
 # from RNN_estimate import get_clusters
 # from local import make_input
@@ -39,6 +40,29 @@ def assign2label(lst):
             id2lab[id].append(L)
         L += 1
     return list(id2lab.keys()), list(id2lab.values())
+
+def prec_based_on_rule(ass_path):
+    """
+    Calculate the precision of a assignment with the pos_pair info.
+    """
+    assigns = json.load(open(ass_path))
+    pos_pair = json.load(open(pos_pair_path))
+    prec = {}
+    for name  in assigns.keys():
+        pairs = pos_pair[name]
+        assign = assigns[name]
+        corr_num = .0
+        total_num = .0
+        ids, labels = assign2label(assign)
+        pid2label = {i:j for i, j in zip(ids, labels)}
+        for pida, pidb in pairs:
+            total_num += 1
+            if (pid2label[pida] == pid2label[pidb]):
+                corr_num += 1
+
+        prec[name] = corr_num / total_num
+    return prec
+
 
 def cal_f1(prec, rec):
     return 2 * prec * rec / (prec + rec)
@@ -76,6 +100,21 @@ def pairwise_precision_recall_f1(preds, truths):
     else:
         f1 = (2 * precision * recall) / (precision + recall)
     return precision, recall, f1
+
+# def offline_score():
+#     assignments_train = json.load(open(assignments_train_path, 'r'))
+#     Z = pkl.load(open(local_output_path, 'rb'))
+#     metric = []
+#     for k, v in assignments_train.items():
+#         ids = [p['id'] for p in v]
+#         X = [Z.get(x) for x in ids]
+#         ids, labs = assign2label(v)
+
+        # labels = clustering(X)
+        # f1 = pairwise_precision_recall_f1(labels, labs)
+        # print(f1)
+        # metric.append(f1)
+    # print('offline f1:', np.mean(metric))
 
 
 # if __name__ == "__main__":
