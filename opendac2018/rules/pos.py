@@ -7,7 +7,8 @@ from itertools import combinations
 from collections import defaultdict
 sys.path.append('../')
 from settings import pubs_train_path, pubs_validate_path, pos_pair_path, \
-    rule_check_file_path, assignments_train_path
+    rule_check_file_path, assignments_train_path, CPU_COUNT
+import multiprocessing as mlp
 
 # VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
 #    IDF_THRESHOLD, global_output_path, material_path, idf_path,
@@ -121,33 +122,32 @@ def check_rule_precision(rule):
     print('Rule %s  precision: %.3f' % (rule.__name__, correct_count / total_count))
     return correct, wrong
 
+def work_for(papers):
+    pairs = set()
+    rules = [exactly_same_co_author]
+    for paper_a, paper_b in combinations(papers, 2):
+        for rule in rules:
+            if rule(paper_a, paper_b):
+                pairs.add((paper_a['id'], paper_b['id']))
+    return list(pairs)
 
 def generate_positive_pair(mode=0):
     """
     Generate the pair of doc that obey the strong rule, which makes them must
     belong to the same cluster.
     Return: dict: key-name, values-list of pos_pair tuple
-    {'name': [(pid,pid), ... , [pid, pid]]}
+    {'name': [(pid,pid), ... , (pid, pid)]}
     """
+    if os.path.exists(pos_pair_path):
+        return json.load(open(pos_pair_path, 'r'))
 
-    rules = [exactly_same_co_author]
-    pos_pair = defaultdict(list)
 
-    data = json.load(open(pubs_train_path))
-    val_data = json.load(open(pubs_validate_path))
-    data.update(val_data)
-    for idx, (name, papers) in enumerate(data.items()):
-        print(name, "%d/%d" % (idx + 1, len(data)))
-        pairs = set()
-        for paper_a, paper_b in combinations(papers, 2):
-            for rule in rules:
-                if rule(paper_a, paper_b):
-                    pairs.add((paper_a['id'], paper_b['id']))
-        pos_pair[name] = list(pairs)
+    pubs_train = json.load(open(pubs_train_path))
+    pubs_validate = json.load(open(pubs_validate_path))
+    data = {**pubs_train, **pubs_validate}
 
-    if os.path.isfile(pos_pair_path):
-        existed_pair = json.load(open(pos_pair_path))
+    pool = mlp.Pool(CPU_COUNT)
+    pos_pair = dict(zip(data.keys(), pool.map(work_for, data.values())))
 
-    pos_pair.update(existed_pair)
     json.dump(pos_pair, open(pos_pair_path, 'w'))
     return pos_pair

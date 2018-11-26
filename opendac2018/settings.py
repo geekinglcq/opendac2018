@@ -12,6 +12,7 @@ IDF_THRESHOLD = 32
 cuda_visible_devices = '1'
 local_output_path       = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id  -> Z_i, np.ndarray
 
+
 # Global settings
 assignments_train_path  = join(DATA_DIR, 'assignment_train.json')
 pubs_train_path         = join(DATA_DIR, 'pubs_train.json')
