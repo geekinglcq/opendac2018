@@ -17,8 +17,9 @@ pubs_validate = json.load(open(pubs_validate_path,'r'))
 pubs_train = json.load(open(pubs_train_path, 'r'))
 local_output = pkl.load(open(local_output_path, 'rb'))
 pos_pair = generate_positive_pair()
-cluster_num = json.load(open("./output/cluster_num_17.json", 'r'))
-j68 = json.load(open('0.68.json','r'))
+# cluster_num = json.load(open("./output/cluster_num_17.json", 'r'))
+# j68 = json.load(open('0.68.json','r'))
+
 
 def clustering_with_const(name, method='PCKMeans', num_clusters=None):
     """
@@ -28,29 +29,42 @@ def clustering_with_const(name, method='PCKMeans', num_clusters=None):
       list ml: must-link constraints
       list cl: cannot-link constraints
     """
-
-    ids = [p['id'] for p in pubs_validate[name]]
+    if name in pubs_validate.keys():
+        ids = [p['id'] for p in pubs_validate[name]]
+    else:
+        ids = [p['id'] for p in pubs_train[name]]
     id2ind = {k : v for v, k in enumerate(ids)}
     must_link = [(id2ind[a], id2ind[b]) for a, b in pos_pair[name]]
     Z = np.array([local_output[id] for id in ids])
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(Z)
 
-    assert method in set(['COPKMeans', 'PCKMeans', 'MPCKMeans', 'MPCKMeansMF'
+    assert method in set(['COPKMeans', 'PCKMeans', 'MPCKMeans', 'MPCKMeansMF',
                           'MKMeans', 'RCAKMeans'])
-    model = eval(method)(n_clusters=50)
+    if num_clusters:
+        model = eval(method)(n_clusters=num_clusters)
+    else:
+        model = eval(method)(50)
+    print(name)
     model.fit(emb_norm, ml=must_link)
 
     return label2assign(ids, model.labels_)
 
 
 def clustering(name, method='XMeans', num_clusters=None):
-    ids = [p['id'] for p in pubs_validate[name]]       #todo: 视情况修改
+    if name in pubs_validate.keys():
+        ids = [p['id'] for p in pubs_validate[name]]
+    else:
+        ids = [p['id'] for p in pubs_train[name]]
+    # ids = [p['id'] for p in pubs_validate[name]]       #todo: 视情况修改
     Z = np.array([local_output[id] for id in ids])
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(Z)
     if method == 'XMeans':
-        model = XMeans()
+        if num_clusters:
+            model = XMeans(kmax=num_clusters)
+        else:
+            model = XMeans()
         model.fit(emb_norm)
 
     elif method == 'HAC':

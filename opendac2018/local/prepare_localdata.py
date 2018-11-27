@@ -8,7 +8,8 @@ import multiprocessing as mlp
 
 sys.path.append('../')
 from settings import VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
-    IDF_THRESHOLD, global_output_path, material_path, idf_path, CPU_COUNT
+    IDF_THRESHOLD, global_output_path, material_path, idf_path, CPU_COUNT,\
+    pos_pair_path
 print(VAL_PATH)
 
 
@@ -48,6 +49,8 @@ def get_common_score_similar(set1, set2, idf):
 
 def gen_data_for(name):
     cur_name_pids = name_to_pubs_test[name]
+    pos_pairs = json.load(open(pos_pair_path))[name]
+    pos_pairs = set([(i,j) for i, j in pos_pairs])
     pids_set = set()
     pids = []
     pids2label = {}
@@ -79,12 +82,17 @@ def gen_data_for(name):
     n_pubs = len(pids_filter)
     with open(join(graph_dir, '{}_pubs_network.txt'.format(name)), 'w') as wf_network:
         for i in range(n_pubs - 1):
-            author_feature1 = set(lc_feature.get(pids_filter[i]))
+            pida = pids_filter[i]
+            author_feature1 = set(lc_feature.get(pida))
             for j in range(i + 1, n_pubs):
-                author_feature2 = set(lc_feature.get(pids_filter[j]))
+                pidb = pids_filter[j]
+                if (pida, pidb) in pos_pairs or (pidb, pida) in pos_pairs:
+                    wf_network.write('{}\t{}\n'.format(pida, pidb))
+                    continue
+                author_feature2 = set(lc_feature.get(pidb))
                 idf_sum = get_common_score_inters(author_feature1, author_feature2, idf)
                 if idf_sum >= IDF_THRESHOLD:
-                    wf_network.write('{}\t{}\n'.format(pids_filter[i], pids_filter[j]))
+                    wf_network.write('{}\t{}\n'.format(pida, pidb))
 
 
 if __name__ == '__main__':

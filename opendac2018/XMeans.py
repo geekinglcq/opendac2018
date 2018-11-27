@@ -10,7 +10,6 @@ from sklearn.cluster import KMeans
 
 EPS = np.finfo(float).eps
 
-
 def loglikelihood(R, R_n, variance, M, K):
     """
     See Pelleg's and Moore's for more details.
@@ -69,7 +68,7 @@ def get_additonal_k_split(K, X, clst_labels, clst_centers, n_features, K_sub, k_
 
 
 class XMeans(KMeans):
-    def __init__(self, kmax=50, max_iter=1000, **k_means_args):
+    def __init__(self, kmax=20, max_iter=1000, **k_means_args):
         """
 
         :param kmax: maximum number of clusters that XMeans can divide the data in
