@@ -102,21 +102,21 @@ if __name__ == '__main__':
     graph_dir = join(OUTPUT_DIR, 'graph-{}'.format(IDF_THRESHOLD))
     os.makedirs(graph_dir, exist_ok=True)
 
-    # # for train
-    # mode = 0
-    # name_to_pubs_test = json.load(open(TRAIN_NAME2PUB))
-    # p = mlp.Pool(CPU_COUNT)
-    # p.map(gen_data_for, name_to_pubs_test.keys())
-    # p.close()
+    # for train
+    mode = 0
+    name_to_pubs_test = json.load(open(TRAIN_NAME2PUB))
+    p = mlp.Pool(CPU_COUNT)
+    p.map(gen_data_for, name_to_pubs_test.keys())
+    p.close()
 
-    # # for validate
-    # mode = 1
-    # if not os.path.exists(VAL_NAME2PUB):
-    #     gen_validation_name_to_pubs()
-    # name_to_pubs_test = json.load(open(VAL_NAME2PUB))
-    # p = mlp.Pool(CPU_COUNT)
-    # p.map(gen_data_for, name_to_pubs_test.keys())
-    # p.close()
+    # for validate
+    mode = 1
+    if not os.path.exists(VAL_NAME2PUB):
+        gen_validation_name_to_pubs()
+    name_to_pubs_test = json.load(open(VAL_NAME2PUB))
+    p = mlp.Pool(CPU_COUNT)
+    p.map(gen_data_for, name_to_pubs_test.keys())
+    p.close()
 
     # for test
     mode = 1
