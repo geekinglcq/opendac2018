@@ -7,6 +7,7 @@ OUTPUT_DIR = join(PROJ_DIR, './output/')
 
 TRAIN_NAME2PUB = join(DATA_DIR, 'assignment_train.json')
 VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
+TEST_NAME2PUB = join(DATA_DIR, 'await_test.json')
 VAL_PATH = join(DATA_DIR, 'pubs_validate2.json')
 TEST_PATH = join(DATA_DIR, 'pubs_test.json')
 TEST_NAME2PUB = join(DATA_DIR, 'await_test.json')
@@ -19,7 +20,8 @@ local_output_path       = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id  -> Z_i
 assignments_train_path  = join(DATA_DIR, 'assignment_train.json')
 assignments_val_path    = join(DATA_DIR, 'assignment_validate.json')
 pubs_train_path         = join(DATA_DIR, 'pubs_train.json')
-pubs_validate_path      = join(DATA_DIR, 'pubs_validate2.json')
+pubs_validate_path      = join(DATA_DIR, 'pubs_validate.json')
+pubs_test_path          = join(DATA_DIR, 'pubs_test.json')
 stop_words_path         = './data/stop_words.txt'
 idf_path                = join(OUTPUT_DIR, 'idf.pkl')  # word    -> idf value, float
 global_output_path      = join(OUTPUT_DIR, 'global_output.pkl')  # doc_id  -> Y_i, np.ndarray
