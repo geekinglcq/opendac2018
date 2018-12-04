@@ -177,7 +177,7 @@ def gae_for_na(name, mode=0):
         local_output[pid] = emb[idx]
 
     # Train mode calcul F1
-    if not mode:
+    if not (mode==2):
         n_clusters = len(set(labels))
         emb_norm = normalize_vectors(emb)
         model = AgglomerativeClustering(n_clusters=n_clusters)
@@ -192,10 +192,12 @@ def gae_for_na(name, mode=0):
 def load_names(mode=0):
     """ mode: 0-train 1-val
     """
-    if mode:
+    if mode == 1:
         filename = 'val_name_list.json'
-    else:
+    elif mode == 0:
         filename = 'train_name_list.json'
+    else:
+        filename = 'test_name_list.json'
     return json.load(open(join(DATA_DIR, filename)))
 
 
@@ -206,6 +208,12 @@ def main(mode=0):
             join(OUTPUT_DIR, 'local_clustering_results.csv'),
             'w',
             encoding='utf-8')
+    if mode == 1:
+        wf = codecs.open(
+            join(OUTPUT_DIR, 'local_clustering_results_val.csv'),
+            'w',
+            encoding='utf-8')
+        wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
         wf.write('name,n_pubs,n_clusters,precision,recall,f1\n')
     metrics = np.zeros(3)
 
@@ -244,5 +252,7 @@ if __name__ == '__main__':
 
     #for val
     main(1)
+
+    main(2)
     pickle.dump(local_output, open(local_output_path, 'wb'))
 

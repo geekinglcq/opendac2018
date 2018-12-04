@@ -1,5 +1,6 @@
 import multiprocessing as mkl
-from settings import local_output_path,pubs_validate_path,CPU_COUNT, pubs_train_path, pos_pair_path
+from settings import local_output_path,pubs_validate_path,CPU_COUNT, pubs_train_path, pos_pair_path,\
+                    TEST_PATH
 from tools import label2assign
 
 from XMeans import XMeans
@@ -15,6 +16,7 @@ import numpy as np
 
 pubs_validate = json.load(open(pubs_validate_path,'r'))
 pubs_train = json.load(open(pubs_train_path, 'r'))
+pubs_test = json.load(open(TEST_PATH))
 local_output = pkl.load(open(local_output_path, 'rb'))
 pos_pair = generate_positive_pair()
 # cluster_num = json.load(open("./output/cluster_num_17.json", 'r'))
@@ -31,8 +33,12 @@ def clustering_with_const(name, method='PCKMeans', num_clusters=None):
     """
     if name in pubs_validate.keys():
         ids = [p['id'] for p in pubs_validate[name]]
-    else:
+    elif name in pubs_train.keys():
         ids = [p['id'] for p in pubs_train[name]]
+    else:
+        ids = [p['id'] for p in pubs_test[name]]
+    if len(ids) == 0:
+        return []
     id2ind = {k : v for v, k in enumerate(ids)}
     must_link = [(id2ind[a], id2ind[b]) for a, b in pos_pair[name]]
     Z = np.array([local_output[id] for id in ids])
@@ -45,7 +51,6 @@ def clustering_with_const(name, method='PCKMeans', num_clusters=None):
         model = eval(method)(n_clusters=num_clusters)
     else:
         model = eval(method)(50)
-    print(name)
     model.fit(emb_norm, ml=must_link)
 
     return label2assign(ids, model.labels_)
@@ -54,9 +59,13 @@ def clustering_with_const(name, method='PCKMeans', num_clusters=None):
 def clustering(name, method='XMeans', num_clusters=None):
     if name in pubs_validate.keys():
         ids = [p['id'] for p in pubs_validate[name]]
-    else:
+    elif name in pubs_train.keys():
         ids = [p['id'] for p in pubs_train[name]]
+    else:
+        ids = [p['id'] for p in pubs_test[name]]
     # ids = [p['id'] for p in pubs_validate[name]]       #todo: 视情况修改
+    if len(ids) == 0:
+        return []
     Z = np.array([local_output[id] for id in ids])
     scalar = StandardScaler()
     emb_norm = scalar.fit_transform(Z)

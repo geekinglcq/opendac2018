@@ -29,23 +29,27 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from settings import cuda_visible_devices, assignments_train_path, pubs_train_path, \
                      pubs_validate_path, stop_words_path, idf_path, global_output_path,\
                      material_path, weighted_embedding_path,\
-                     word2vect_model_path, triple_set, CPU_COUNT, EMBEDDING_DIM
+                     word2vect_model_path, triple_set, CPU_COUNT, EMBEDDING_DIM,\
+                     TEST_PATH, assignments_val_path
 
 os.environ['CUDA_VISIBLE_DEVICES']=cuda_visible_devices
 
 with open(stop_words_path,'r') as f:
     s = set(f.readline().split(','))
 stop_word_list = s.union(stopwords.words('english'))
-    
+
 
 
 ## Read Data
 def read_data():
     assignments_train = json.load(open(assignments_train_path,'r'))
+    assignments_val = json.load(open(assignments_val_path, 'r'))
+    assignments_train = {**assignments_train, **assignments_val}
     pubs_train = json.load(open(pubs_train_path, 'r'))
     pubs_validate = json.load(open(pubs_validate_path,'r'))
-    pubs={**pubs_train, **pubs_validate}
-    assert(len(pubs)==len(pubs_train)+len(pubs_validate))
+    pubs_test = json.load(open(TEST_PATH, 'r'))
+    pubs={**pubs_train, **pubs_validate, **pubs_test}
+    assert(len(pubs)==len(pubs_train)+len(pubs_validate)+len(pubs_test))
     print('read done!')
     return assignments_train, pubs_train, pubs_validate, pubs
 
@@ -65,7 +69,7 @@ def clean_sent(s, prefix = None):
     stemer = PorterStemmer()
     return [ '__%s__%s'%(prefix, stemer.stem(w)) for w in words]
 
-    
+
 def ExtractTxt(doc, primary_author):
     """
     把一个文档变为：
@@ -83,14 +87,14 @@ def ExtractTxt(doc, primary_author):
                 coauthors.append( clean_name(aut.get('name','')) )
                 coauthors.extend( clean_sent(aut.get('org',''), 'O') )
     return title+coauthors+venue+abstract+keywords
-    
+
 def word_embedding():
-    #model = KeyedVectors.load_word2vec_format(word2vect_model_path, binary=True)
-    if os.path.exists(word2vect_model_path) and os.path.exists(material_path):
-        docs = pkl.load(open(material_path,'rb'))
-        Word2Vec.load(word2vect_model_path)
-        return model, docs
-    
+#    #model = KeyedVectors.load_word2vec_format(word2vect_model_path, binary=True)
+#    if os.path.exists(word2vect_model_path) and os.path.exists(material_path):
+#        docs = pkl.load(open(material_path,'rb'))
+#        model =Word2Vec.load(word2vect_model_path)
+#        return model, docs
+
     material = []
     paper_id = []
     pool = mlp.Pool(CPU_COUNT)
@@ -102,7 +106,7 @@ def word_embedding():
     model.save(word2vect_model_path)
     pkl.dump(docs, open(material_path,'wb'))
     pool.close()
-    return model, docs 
+    return model, docs
 
 
 ## Weighted Embedding
@@ -121,8 +125,9 @@ def calc_idf(material):
     return idf
 
 def project_embedding(docs, wv, idf):
-    if os.path.exists(weighted_embedding_path):
-        return pkl.load(open(weighted_embedding_path, 'rb'))
+
+    # if os.path.exists(weighted_embedding_path):
+        # return pkl.load(open(weighted_embedding_path, 'rb'))
 
     wei_embed = {}
     for id, doc in docs.items():
@@ -159,7 +164,7 @@ def gen_triple(weighted, sz = 1000000):
     #if os.path.exists(triple_set):
     #    d = pkl.load(open(triple_set,'rb'))
     #    return d['emb'], d['emb_pos'], d['emb_neg']
-    
+
     triples = []
     authors = list(assignments_train.keys())
     all_papers = list(set([p['id'] for k,v in pubs_train.items() for p in v]))
@@ -181,7 +186,7 @@ def gen_triple(weighted, sz = 1000000):
                             raise StopIteration
     except StopIteration as e:
         print(len(triples))
-    
+
     emb = np.array([ weighted[t[0]] for t in triples ])
     emb_pos = np.array([ weighted[t[1]] for t in triples ])
     emb_neg = np.array([ weighted[t[2]] for t in triples ])
@@ -234,28 +239,28 @@ class GlobalModel(object):
             name='stacked_dists',
             output_shape=cal_output_shape
         )([pos_dist, neg_dist])
-        
+
         self.model = Model([emb_anchor, emb_pos, emb_neg], stacked_dists, name='triple_siamese')
         self.model.compile(loss=triplet_loss, optimizer='adam', metrics=[accuracy])
-        self.infer = Model(inputs=self.model.get_layer('anchor_input').get_input_at(0), 
+        self.infer = Model(inputs=self.model.get_layer('anchor_input').get_input_at(0),
                            outputs=self.model.get_layer('norm_layer').get_output_at(0))
         self.early = EarlyStopping('val_loss', patience = 5)
         self.checkpoint = ModelCheckpoint(self.save_path, 'val_loss', save_best_only=True, save_weights_only = True)
-        
-        
+
+
     def train(self, X, retrain = True):
         if retrain:
             n_triplets = len(X[0])
             self.model.fit(X, np.ones((n_triplets, 2)), batch_size=1600, epochs=200, shuffle=True, validation_split=0.2, callbacks = [self.early, self.checkpoint])
         else:
             self.load()
-        
+
     def predict(self, X):
         return self.infer.predict(X)
-    
+
     def save(self):
         self.model.save_weights(self.save_path)
-        
+
     def load(self):
         self.model.load_weights(self.save_path)
 
@@ -266,7 +271,7 @@ if __name__=="__main__":
     _, _, _, weighted = weighted_embedding()
     emb, emb_pos, emb_neg = gen_triple(weighted, 2000000)
     print('gen triple done!')
-    
+
     #m.train([emb, emb_pos, emb_neg], retrain = False)
     m.train([emb, emb_pos, emb_neg], retrain = True)
 

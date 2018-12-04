@@ -12,7 +12,7 @@ np.seterr('raise')
 class MPCKMeans:
     "MPCK-Means-S-D that learns only a single (S) diagonal (D) matrix"
 
-    def __init__(self, n_clusters=3, max_iter=100, w=1):
+    def __init__(self, n_clusters=3, max_iter=25, w=1):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
         self.w = w
@@ -28,47 +28,47 @@ class MPCKMeans:
         # Initialize metrics
         A = np.identity(X.shape[1])
 
-        st = time.time()
+        # st = time.time()
         # Repeat until convergence
         for iteration in range(self.max_iter):
-
-            print(iteration)
+            if not (iteration % 5):
+                print(iteration)
             prev_cluster_centers = cluster_centers.copy()
 
             # Find farthest pair of points according to each metric
             farthest = self._find_farthest_pairs_of_points(X, A)
 
-            ed = time.time()
-            print('Find farthest pairs of points cost %d' %(ed - st))
-            st = time.time()
+            # # ed = time.time()
+            # print('Find farthest pairs of points cost %d' %(ed - st))
+            # st = time.time()
 
             # Assign clusters
             labels = self._assign_clusters(X, y, cluster_centers, A, farthest, ml_graph, cl_graph, self.w)
-            ed = time.time()
-            print('Assign cluster cost %d' %(ed - st))
-            st = time.time()
+            # ed = time.time()
+            # print('Assign cluster cost %d' %(ed - st))
+            # st = time.time()
 
 
             # Estimate means
             cluster_centers = self._get_cluster_centers(X, labels)
-            ed = time.time()
-            print('Estimate means cost %d' %(ed - st))
-            st = time.time()
+            # ed = time.time()
+            # print('Estimate means cost %d' %(ed - st))
+            # st = time.time()
 
 
             # Update metrics
             A = self._update_metrics(X, labels, cluster_centers, farthest, ml_graph, cl_graph, self.w)
-            ed = time.time()
-            print('Update metrics cost %d' %(ed - st))
-            st = time.time()
+            # ed = time.time()
+            # print('Update metrics cost %d' %(ed - st))
+            # st = time.time()
 
 
             # Check for convergence
             cluster_centers_shift = (prev_cluster_centers - cluster_centers)
             converged = np.allclose(cluster_centers_shift, np.zeros(cluster_centers.shape), atol=1e-6, rtol=0)
-            ed = time.time()
-            print('Check convergence cost %d' %(ed - st))
-            st = time.time()
+            # ed = time.time()
+            # print('Check convergence cost %d' %(ed - st))
+            # st = time.time()
 
 
             if converged:

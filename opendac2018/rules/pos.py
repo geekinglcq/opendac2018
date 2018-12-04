@@ -7,7 +7,8 @@ from itertools import combinations
 from collections import defaultdict
 sys.path.append('../')
 from settings import pubs_train_path, pubs_validate_path, pos_pair_path, \
-    rule_check_file_path, assignments_train_path, CPU_COUNT
+    rule_check_file_path, assignments_train_path, CPU_COUNT, TEST_PATH, \
+    assignments_val_path
 import multiprocessing as mlp
 
 # VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
@@ -22,6 +23,7 @@ def exactly_same_co_author(paper_a, paper_b):
     """
     co_author_a = set([author['name'] for author in paper_a['authors']])
     co_author_b = set([author['name'] for author in paper_b['authors']])
+
     if (co_author_a == co_author_b) and (len(co_author_a) >= 2):
         return True
     else:
@@ -68,7 +70,7 @@ def at_least_one_same_org(paper_a, paper_b):
     org_a = set([author['org'] for author in paper_a['authors']])
     org_b = set([author['org'] for author in paper_b['authors']])
     len_and = len(org_a & org_b)
-    if len_and >= 1:
+    if len_and >= 2:
         return True
     else:
         return False
@@ -82,7 +84,7 @@ def gen_rule_check_file():
     value format name_xxx (e.g. li_ma_1, j_xu_3)
     """
     print("Start to generate rule check file")
-    data = json.load(open(assignments_train_path))
+    data = json.load(open(assignments_val_path))
     rule_check = {}
     for name, clusters in data.items():
         for cid, cluster in enumerate(clusters):
@@ -101,15 +103,21 @@ def check_rule_precision(rule):
     total_count = .0
     wrong = []
     correct = []
-    data = json.load(open(pubs_train_path))
-    if not os.path.isfile(rule_check_file_path):
-        gen_rule_check_file()
+    data = json.load(open(pubs_validate_path))
+    # if not os.path.isfile(rule_check_file_path):
+    gen_rule_check_file()
     check = json.load(open(rule_check_file_path))
+    ass_val = json.load(open(assignments_val_path))
+
+    name2paper = {}
+    for k, v in ass_val.items():
+        name2paper[k] = [j for i in v for j in i]
 
     print("Start to check the rule: %s" % (rule.__name__))
     for idx, (name, papers) in enumerate(data.items()):
-        if idx | 20:
+        if not (idx % 20):
             print(idx + 1, '/', len(data))
+
         for paper_a, paper_b in combinations(papers, 2):
             if_same = check[paper_a['id']] == check[paper_b['id']]
             if rule(paper_a, paper_b):
@@ -124,7 +132,7 @@ def check_rule_precision(rule):
 
 def work_for(papers):
     pairs = set()
-    rules = [exactly_same_co_author]
+    rules = [nearly_same_co_author, at_least_one_same_org]
     for paper_a, paper_b in combinations(papers, 2):
         for rule in rules:
             if rule(paper_a, paper_b):
@@ -138,13 +146,15 @@ def generate_positive_pair(mode=0):
     Return: dict: key-name, values-list of pos_pair tuple
     {'name': [(pid,pid), ... , (pid, pid)]}
     """
-    if os.path.exists(pos_pair_path):
-        return json.load(open(pos_pair_path, 'r'))
+
+    # if os.path.exists(pos_pair_path):
+    #     return json.load(open(pos_pair_path, 'r'))
 
 
     pubs_train = json.load(open(pubs_train_path))
     pubs_validate = json.load(open(pubs_validate_path))
-    data = {**pubs_train, **pubs_validate}
+    pubs_test = json.load(open(TEST_PATH))
+    data = {**pubs_train, **pubs_validate, **pubs_test}
 
     pool = mlp.Pool(CPU_COUNT)
     pos_pair = dict(zip(data.keys(), pool.map(work_for, data.values())))

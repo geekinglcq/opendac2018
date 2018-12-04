@@ -9,18 +9,18 @@ import multiprocessing as mlp
 sys.path.append('../')
 from settings import VAL_PATH, VAL_NAME2PUB, OUTPUT_DIR, TRAIN_NAME2PUB,\
     IDF_THRESHOLD, global_output_path, material_path, idf_path, CPU_COUNT,\
-    pos_pair_path
+    pos_pair_path, TEST_PATH, TEST_NAME2PUB
 print(VAL_PATH)
 
 
-def gen_validation_name_to_pubs():
-    val_data = json.load(open(VAL_PATH))
+def gen_validation_name_to_pubs(path=VAL_PATH, dst=VAL_NAME2PUB):
+    val_data = json.load(open(path))
     val_name2pub = {}
     for name, pubs in val_data.items():
         val_name2pub[name] = []
         for pub in pubs:
             val_name2pub[name].append(pub["id"])
-    json.dump(val_name2pub, open(VAL_NAME2PUB, 'w'))
+    json.dump(val_name2pub, open(dst, 'w'))
 
 
 def get_common_score_DP(set1, set2, idf):
@@ -102,18 +102,27 @@ if __name__ == '__main__':
     graph_dir = join(OUTPUT_DIR, 'graph-{}'.format(IDF_THRESHOLD))
     os.makedirs(graph_dir, exist_ok=True)
 
-    # for train
-    mode = 0
-    name_to_pubs_test = json.load(open(TRAIN_NAME2PUB))
-    p = mlp.Pool(CPU_COUNT)
-    p.map(gen_data_for, name_to_pubs_test.keys())
-    p.close()
+    # # for train
+    # mode = 0
+    # name_to_pubs_test = json.load(open(TRAIN_NAME2PUB))
+    # p = mlp.Pool(CPU_COUNT)
+    # p.map(gen_data_for, name_to_pubs_test.keys())
+    # p.close()
 
-    # for validate
+    # # for validate
+    # mode = 1
+    # if not os.path.exists(VAL_NAME2PUB):
+    #     gen_validation_name_to_pubs()
+    # name_to_pubs_test = json.load(open(VAL_NAME2PUB))
+    # p = mlp.Pool(CPU_COUNT)
+    # p.map(gen_data_for, name_to_pubs_test.keys())
+    # p.close()
+
+    # for test
     mode = 1
-    if not os.path.exists(VAL_NAME2PUB):
-        gen_validation_name_to_pubs()
-    name_to_pubs_test = json.load(open(VAL_NAME2PUB))
+    if not os.path.exists(TEST_NAME2PUB):
+        gen_validation_name_to_pubs(TEST_PATH, TEST_NAME2PUB)
+    name_to_pubs_test = json.load(open(TEST_NAME2PUB))
     p = mlp.Pool(CPU_COUNT)
     p.map(gen_data_for, name_to_pubs_test.keys())
     p.close()
