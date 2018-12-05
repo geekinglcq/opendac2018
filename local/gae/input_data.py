@@ -2,7 +2,7 @@ from os.path import join
 import numpy as np
 import scipy.sparse as sp
 
-IDF_THRESHOLD = 32
+IDF_THRESHOLD = 50
 OUTPUT_DIR = '../../output'
 local_na_dir = join(OUTPUT_DIR, 'graph-{}'.format(IDF_THRESHOLD))
 

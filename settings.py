@@ -10,8 +10,7 @@ VAL_NAME2PUB = join(DATA_DIR, 'await_validation.json')
 TEST_NAME2PUB = join(DATA_DIR, 'await_test.json')
 VAL_PATH = join(DATA_DIR, 'pubs_validate.json')
 TEST_PATH = join(DATA_DIR, 'pubs_test.json')
-TEST_NAME2PUB = join(DATA_DIR, 'await_test.json')
-IDF_THRESHOLD = 32
+IDF_THRESHOLD = 50
 cuda_visible_devices = '1'
 local_output_path       = join(OUTPUT_DIR, 'local_output.pkl')  # doc_id  -> Z_i, np.ndarray
 
@@ -35,4 +34,4 @@ word2vect_model_path    = './output/word.emb'                   # word2vec model
 triple_set              = './output/triple.pkl'                           # 'emb'   -> anchors; 'emb_pos': positive weighted embedding; 'emb_neg': negative ones
 EMBEDDING_DIM = 100
 
-CPU_COUNT = 20
+CPU_COUNT = 10
