@@ -1,4 +1,4 @@
-tensorflow==1.6.0
+tensorflow ~> 1.7.1.
 numpy==1.15.1
 Keras==2.2.4
 gensim==3.2.0
